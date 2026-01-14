@@ -1,0 +1,109 @@
+# 📚 학술저널 일일 브리핑
+**{{ report_date }}** | 총 **{{ total_count }}**편 수집
+
+---
+
+{% if high_priority_articles %}
+## 🔴 높은 관심도 ({{ high_priority_articles|length }}편)
+
+케이의 연구 관심사(통치성, 어셈블리지, 신유물론 등)와 밀접하게 관련된 논문들이에요.
+
+{% for article in high_priority_articles %}
+### {{ loop.index }}. {{ article.title_ko or article.title }}
+
+{% if article.title_ko %}
+> **원제:** {{ article.title }}
+{% endif %}
+
+| 항목 | 내용 |
+|------|------|
+| **저널** | {{ article.journal_name }} |
+| **저자** | {{ article.authors or '정보 없음' }} |
+{% if article.doi %}
+| **DOI** | {{ article.doi }} |
+{% endif %}
+{% if article.keywords_matched %}
+| **🏷️ 매칭 키워드** | {{ article.keywords_matched|join(', ') }} |
+{% endif %}
+| **🔗 링크** | [원문 보기]({{ article.url }}) |
+
+{% if article.summary_ko %}
+#### 📝 핵심 요약
+{{ article.summary_ko }}
+{% endif %}
+
+{% if article.abstract_ko %}
+<details>
+<summary>📄 전체 초록 번역 펼치기</summary>
+
+{{ article.abstract_ko }}
+
+</details>
+{% endif %}
+
+---
+
+{% endfor %}
+{% endif %}
+
+{% if medium_priority_articles %}
+## 🟡 중간 관심도 ({{ medium_priority_articles|length }}편)
+
+관련성이 있을 수 있는 논문들이에요.
+
+{% for article in medium_priority_articles %}
+### {{ loop.index }}. {{ article.title_ko or article.title }}
+
+- **저널:** {{ article.journal_name }}
+- **저자:** {{ article.authors or '정보 없음' }}
+{% if article.keywords_matched %}
+- **🏷️ 키워드:** {{ article.keywords_matched|join(', ') }}
+{% endif %}
+- **🔗 링크:** [원문 보기]({{ article.url }})
+
+{% if article.summary_ko %}
+> {{ article.summary_ko }}
+{% endif %}
+
+---
+
+{% endfor %}
+{% endif %}
+
+{% if normal_articles %}
+## 📋 기타 논문 ({{ normal_articles|length }}편)
+
+우선순위 키워드와 직접 매칭되지 않았지만, 참고할 수 있는 논문들이에요.
+
+| # | 저널 | 제목 | 저자 | 링크 |
+|---|------|------|------|------|
+{% for article in normal_articles %}
+| {{ loop.index }} | {{ article.journal_name }} | {{ (article.title_ko or article.title)[:50] }}{% if (article.title_ko or article.title)|length > 50 %}...{% endif %} | {{ (article.authors or '-')[:20] }}{% if (article.authors or '')|length > 20 %}...{% endif %} | [보기]({{ article.url }}) |
+{% endfor %}
+
+{% endif %}
+
+---
+
+## 📊 수집 통계
+
+### 저널별 현황
+
+| 카테고리 | 저널명 | 수집 논문 수 |
+|----------|--------|-------------|
+{% for journal, count in journal_stats.items() %}
+| {{ journal_categories.get(journal, '-') }} | {{ journal }} | {{ count }}편 |
+{% endfor %}
+
+### 우선순위별 분포
+
+| 우선순위 | 논문 수 | 비율 |
+|----------|---------|------|
+| 🔴 높음 | {{ high_priority_articles|length }}편 | {{ '%.1f'|format(high_priority_articles|length / total_count * 100 if total_count > 0 else 0) }}% |
+| 🟡 중간 | {{ medium_priority_articles|length }}편 | {{ '%.1f'|format(medium_priority_articles|length / total_count * 100 if total_count > 0 else 0) }}% |
+| ⚪ 일반 | {{ normal_articles|length }}편 | {{ '%.1f'|format(normal_articles|length / total_count * 100 if total_count > 0 else 0) }}% |
+
+---
+
+*이 보고서는 Journal Monitor v1.0에 의해 자동 생성되었습니다.*
+*생성 시각: {{ generated_at }}*

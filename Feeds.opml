@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+<head>
+<title>Feeds</title>
+</head>
+<body>
+<outline text="대한성공회 성무일과 아침기도" htmlUrl="https://seoul.anglican.kr" type="rss" xmlUrl="https://seoul.anglican.kr/feed/podcast" title="대한성공회 성무일과 아침기도" />
+
+<!-- ==================== GEOGRAPHY JOURNALS ==================== -->
+<outline title="Academic: Geography Journals" text="Academic: Geography Journals">
+<outline type="rss" htmlUrl="https://www.tandfonline.com/loi/raag21?af=R" text="Annals of the American Association of Geographers" xmlUrl="https://www.tandfonline.com/feed/rss/raag21/rss" title="Annals of the American Association of Geographers" />
+<outline htmlUrl="https://journals.sagepub.com/loi/usja?ai=2b4&amp;mi=ehikzz&amp;af=R" text="Urban Studies" xmlUrl="https://journals.sagepub.com/action/showFeed?ui=0&amp;mi=ehikzz&amp;ai=2b4&amp;jc=usja&amp;type=etoc&amp;feed=rss" title="Urban Studies" type="rss" />
+<outline title="Political Geography" text="Political Geography" type="rss" htmlUrl="https://www.sciencedirect.com/journal/political-geography" xmlUrl="https://rss.sciencedirect.com/publication/science/09626298" />
+<outline text="Environment and Planning D: Society and Space" title="Environment and Planning D: Society and Space" type="rss" htmlUrl="https://journals.sagepub.com/loi/epda?ai=2b4&amp;mi=ehikzz&amp;af=R" xmlUrl="https://journals.sagepub.com/action/showFeed?ui=0&amp;mi=ehikzz&amp;ai=2b4&amp;jc=epda&amp;type=etoc&amp;feed=rss" />
+<outline type="rss" text="Progress in Planning" htmlUrl="https://www.sciencedirect.com/journal/progress-in-planning" title="Progress in Planning" xmlUrl="https://rss.sciencedirect.com/publication/science/03059006" />
+<outline xmlUrl="http://www.tandfonline.com/action/showFeed?ui=0&amp;mi=f38bp2&amp;ai=1mi&amp;jc=ccit20&amp;type=etoc&amp;feed=rss" text="City" title="City" type="rss" htmlUrl="https://www.tandfonline.com/loi/ccit20?ai=1mi&amp;mi=f38bp2&amp;af=R" />
+<outline xmlUrl="https://www.tandfonline.com/feed/rss/rurb20/rss" title="Urban Geography" type="rss" htmlUrl="https://www.tandfonline.com/loi/rurb20?af=R" text="Urban Geography" />
+<outline type="rss" htmlUrl="https://journals.sagepub.com/loi/saca?ai=2b4&amp;mi=ehikzz&amp;af=R" xmlUrl="https://journals.sagepub.com/action/showFeed?ui=0&amp;mi=ehikzz&amp;ai=2b4&amp;jc=saca&amp;type=etoc&amp;feed=rss" text="Space and Culture" title="Space and Culture" />
+<outline type="rss" text="Geoforum" htmlUrl="https://www.sciencedirect.com/journal/geoforum" title="Geoforum" xmlUrl="https://rss.sciencedirect.com/publication/science/00167185" />
+<outline type="rss" title="The Professional Geographer" text="The Professional Geographer" xmlUrl="https://www.tandfonline.com/feed/rss/rtpg20" htmlUrl="https://www.tandfonline.com/loi/rtpg20?af=R" />
+<outline xmlUrl="https://journals.sagepub.com/action/showFeed?ui=0&amp;mi=ehikzz&amp;ai=2b4&amp;jc=epna&amp;type=etoc&amp;feed=rss" text="Environment and Planning A: Economy and Space" type="rss" htmlUrl="https://journals.sagepub.com/loi/epna?ai=2b4&amp;mi=ehikzz&amp;af=R" title="Environment and Planning A: Economy and Space" />
+<outline htmlUrl="https://journals.sagepub.com/loi/plta?ai=2b4&amp;mi=ehikzz&amp;af=R" text="Planning Theory" type="rss" xmlUrl="https://journals.sagepub.com/action/showFeed?ui=0&amp;mi=ehikzz&amp;ai=2b4&amp;jc=plta&amp;type=etoc&amp;feed=rss" title="Planning Theory" />
+<outline title="Antipode" type="rss" text="Antipode" xmlUrl="http://onlinelibrary.wiley.com/rss/journal/10.1111/(ISSN)1467-8330" htmlUrl="https://onlinelibrary.wiley.com/journal/14678330?af=R" />
+<outline type="rss" xmlUrl="https://www.tandfonline.com/feed/rss/rscg20" text="Social &amp; Cultural Geography" title="Social &amp; Cultural Geography" htmlUrl="https://www.tandfonline.com/loi/rscg20?af=R" />
+<outline title="IJURR International Journal of Urban and Regional Research: Table of Contents" htmlUrl="https://onlinelibrary.wiley.com/journal/14682427?af=R" type="rss" text="IJURR International Journal of Urban and Regional Research: Table of Contents" xmlUrl="https://onlinelibrary.wiley.com/feed/14682427/most-recent" />
+<outline xmlUrl="https://www.tandfonline.com/feed/rss/cres20" text="Regional Studies" title="Regional Studies" type="rss" htmlUrl="https://www.tandfonline.com/loi/cres20?af=R" />
+<outline text="Transactions of the Institute of British Geographers" xmlUrl="http://onlinelibrary.wiley.com/rss/journal/10.1111/(ISSN)1475-5661" htmlUrl="https://rgs-ibg.onlinelibrary.wiley.com/journal/14755661?af=R" title="Transactions of the Institute of British Geographers" type="rss" />
+<outline title="Foucault News" type="rss" htmlUrl="https://michel-foucault.com" text="Foucault News" xmlUrl="http://foucaultnews.wordpress.com/feed/" />
+<outline xmlUrl="https://www.tandfonline.com/feed/rss/recg20/feed" title="Economic Geography" type="rss" text="Economic Geography" htmlUrl="https://www.tandfonline.com/loi/recg20?af=R" />
+<outline type="rss" text="Progress in Human Geography" title="Progress in Human Geography" htmlUrl="https://journals.sagepub.com/loi/phgb?ai=2b4&amp;mi=ehikzz&amp;af=R" xmlUrl="https://journals.sagepub.com/action/showFeed?ui=0&amp;mi=ehikzz&amp;ai=2b4&amp;jc=phgb&amp;type=etoc&amp;feed=rss/feed" />
+<outline text="Wiley: Journal of Economic and Human Geography : Table of Contents" xmlUrl="https://onlinelibrary.wiley.com/feed/14679663/most-recent" htmlUrl="https://onlinelibrary.wiley.com/journal/14679663?af=R" title="Wiley: Journal of Economic and Human Geography : Table of Contents" type="rss" />
+<outline title="Journal of Urban History" type="rss" text="Journal of Urban History" htmlUrl="https://journals.sagepub.com/loi/juha?ai=2b4&amp;mi=ehikzz&amp;af=R" xmlUrl="https://journals.sagepub.com/action/showFeed?ui=0&amp;mi=ehikzz&amp;ai=2b4&amp;jc=juha&amp;type=etoc&amp;feed=rss" />
+<outline type="rss" htmlUrl="https://journals.sagepub.com/loi/dhga?ai=2b4&amp;mi=ehikzz&amp;af=R" title="Dialogues in Human Geography" xmlUrl="https://journals.sagepub.com/action/showFeed?ui=0&amp;mi=ehikzz&amp;ai=2b4&amp;jc=dhga&amp;type=etoc&amp;feed=rss" text="Dialogues in Human Geography" />
+<outline type="rss" title="Cities" text="Cities" htmlUrl="https://www.sciencedirect.com/journal/cities" xmlUrl="https://rss.sciencedirect.com/publication/science/02642751" />
+<!-- NEW: Environment and Planning C -->
+<outline type="rss" title="Environment and Planning C: Politics and Space" text="Environment and Planning C: Politics and Space" htmlUrl="https://journals.sagepub.com/home/epc" xmlUrl="https://journals.sagepub.com/action/showFeed?ui=0&amp;mi=ehikzz&amp;ai=2b4&amp;jc=epca&amp;type=etoc&amp;feed=rss" />
+<!-- NEW: Environment and Planning E -->
+<outline type="rss" title="Environment and Planning E: Nature and Space" text="Environment and Planning E: Nature and Space" htmlUrl="https://journals.sagepub.com/home/ene" xmlUrl="https://journals.sagepub.com/action/showFeed?ui=0&amp;mi=ehikzz&amp;ai=2b4&amp;jc=enea&amp;type=etoc&amp;feed=rss" />
+<!-- NEW: cultural geographies -->
+<outline type="rss" title="cultural geographies" text="cultural geographies" htmlUrl="https://journals.sagepub.com/home/cgj" xmlUrl="https://journals.sagepub.com/action/showFeed?ui=0&amp;mi=ehikzz&amp;ai=2b4&amp;jc=cgja&amp;type=etoc&amp;feed=rss" />
+<!-- NEW: Mobilities -->
+<outline type="rss" title="Mobilities" text="Mobilities" htmlUrl="https://www.tandfonline.com/toc/rmob20/current" xmlUrl="https://www.tandfonline.com/feed/rss/rmob20" />
+<!-- NEW: European Urban and Regional Studies -->
+<outline type="rss" title="European Urban and Regional Studies" text="European Urban and Regional Studies" htmlUrl="https://journals.sagepub.com/home/eur" xmlUrl="https://journals.sagepub.com/action/showFeed?ui=0&amp;mi=ehikzz&amp;ai=2b4&amp;jc=eura&amp;type=etoc&amp;feed=rss" />
+<!-- NEW: Global Networks -->
+<outline type="rss" title="Global Networks" text="Global Networks" htmlUrl="https://onlinelibrary.wiley.com/journal/14710374" xmlUrl="https://onlinelibrary.wiley.com/feed/14710374/most-recent" />
+<!-- NEW: Journal of Urban Affairs -->
+<outline type="rss" title="Journal of Urban Affairs" text="Journal of Urban Affairs" htmlUrl="https://www.tandfonline.com/toc/ujua20/current" xmlUrl="https://www.tandfonline.com/feed/rss/ujua20" />
+<!-- NEW: Housing Studies -->
+<outline type="rss" title="Housing Studies" text="Housing Studies" htmlUrl="https://www.tandfonline.com/toc/chos20/current" xmlUrl="https://www.tandfonline.com/feed/rss/chos20" />
+<!-- NEW: Journal of Historical Geography -->
+<outline type="rss" title="Journal of Historical Geography" text="Journal of Historical Geography" htmlUrl="https://www.sciencedirect.com/journal/journal-of-historical-geography" xmlUrl="https://rss.sciencedirect.com/publication/science/03057488" />
+</outline>
+
+<!-- ==================== SOCIOLOGY JOURNALS ==================== -->
+<outline title="Academic: Sociology Journals" text="Academic: Sociology Journals">
+<outline htmlUrl="https://www.tandfonline.com/loi/reso20?af=R" type="rss" text="Economy and Society" title="Economy and Society" xmlUrl="https://www.tandfonline.com/feed/rss/reso20" />
+<outline text="Annual Review of Sociology: Most Recent Articles" xmlUrl="https://www.annualreviews.org/rss/content/journals/soc/latestarticles?fmt=rss" htmlUrl="https://www.annualreviews.org/content/journals/soc?TRACK=RSS" title="Annual Review of Sociology: Most Recent Articles" type="rss" />
+<outline htmlUrl="https://www.tandfonline.com/loi/reus20?af=R" xmlUrl="https://www.tandfonline.com/feed/rss/reus20" text="European Societies" title="European Societies" type="rss" />
+<outline type="rss" title="City &amp; Community" text="City &amp; Community" htmlUrl="https://journals.sagepub.com/loi/ctya?ai=2b4&amp;mi=ehikzz&amp;af=R" xmlUrl="https://journals.sagepub.com/action/showFeed?ui=0&amp;mi=ehikzz&amp;ai=2b4&amp;jc=ctya&amp;type=etoc&amp;feed=rss" />
+<outline text="American Sociological Review" title="American Sociological Review" htmlUrl="https://journals.sagepub.com/loi/asra?ai=2b4&amp;mi=ehikzz&amp;af=R" type="rss" xmlUrl="https://journals.sagepub.com/action/showFeed?ui=0&amp;mi=ehikzz&amp;ai=2b4&amp;jc=asra&amp;type=etoc&amp;feed=rss" />
+<outline title="Theory, Culture &amp; Society" type="rss" htmlUrl="https://journals.sagepub.com/loi/tcsa?ai=2b4&amp;mi=ehikzz&amp;af=R" text="Theory, Culture &amp; Society" xmlUrl="https://journals.sagepub.com/action/showFeed?ui=0&amp;mi=ehikzz&amp;ai=2b4&amp;jc=tcsa&amp;type=etoc&amp;feed=rss" />
+<outline xmlUrl="https://onlinelibrary.wiley.com/feed/14684446/most-recent" title="The British Journal of Sociology: Table of Contents" text="The British Journal of Sociology: Table of Contents" type="rss" htmlUrl="https://onlinelibrary.wiley.com/journal/14684446?af=R" />
+<outline text="Media, Culture &amp; Society" htmlUrl="https://journals.sagepub.com/loi/mcsa?ai=2b4&amp;mi=ehikzz&amp;af=R" xmlUrl="https://journals.sagepub.com/action/showFeed?ui=0&amp;mi=ehikzz&amp;ai=2b4&amp;jc=mcsa&amp;type=etoc&amp;feed=rss" type="rss" title="Media, Culture &amp; Society" />
+<!-- NEW: Body & Society -->
+<outline type="rss" title="Body &amp; Society" text="Body &amp; Society" htmlUrl="https://journals.sagepub.com/home/bod" xmlUrl="https://journals.sagepub.com/action/showFeed?ui=0&amp;mi=ehikzz&amp;ai=2b4&amp;jc=boda&amp;type=etoc&amp;feed=rss" />
+<!-- NEW: The Sociological Review -->
+<outline type="rss" title="The Sociological Review" text="The Sociological Review" htmlUrl="https://journals.sagepub.com/home/sor" xmlUrl="https://journals.sagepub.com/action/showFeed?ui=0&amp;mi=ehikzz&amp;ai=2b4&amp;jc=sora&amp;type=etoc&amp;feed=rss" />
+</outline>
+
+<!-- ==================== NEW: THEORY & PHILOSOPHY ==================== -->
+<outline title="Academic: Theory &amp; Philosophy" text="Academic: Theory &amp; Philosophy">
+<!-- NEW: Philosophy & Social Criticism -->
+<outline type="rss" title="Philosophy &amp; Social Criticism" text="Philosophy &amp; Social Criticism" htmlUrl="https://journals.sagepub.com/home/psc" xmlUrl="https://journals.sagepub.com/action/showFeed?ui=0&amp;mi=ehikzz&amp;ai=2b4&amp;jc=psca&amp;type=etoc&amp;feed=rss" />
+<!-- NEW: Thesis Eleven -->
+<outline type="rss" title="Thesis Eleven" text="Thesis Eleven" htmlUrl="https://journals.sagepub.com/home/the" xmlUrl="https://journals.sagepub.com/action/showFeed?ui=0&amp;mi=ehikzz&amp;ai=2b4&amp;jc=thea&amp;type=etoc&amp;feed=rss" />
+<!-- NEW: Distinktion -->
+<outline type="rss" title="Distinktion: Journal of Social Theory" text="Distinktion: Journal of Social Theory" htmlUrl="https://www.tandfonline.com/toc/rdis20/current" xmlUrl="https://www.tandfonline.com/feed/rss/rdis20" />
+</outline>
+
+<!-- ==================== NEW: PLANNING STUDIES ==================== -->
+<outline title="Academic: Planning Studies" text="Academic: Planning Studies">
+<!-- NEW: Planning Theory & Practice -->
+<outline type="rss" title="Planning Theory &amp; Practice" text="Planning Theory &amp; Practice" htmlUrl="https://www.tandfonline.com/toc/rptp20/current" xmlUrl="https://www.tandfonline.com/feed/rss/rptp20" />
+<!-- NEW: International Planning Studies -->
+<outline type="rss" title="International Planning Studies" text="International Planning Studies" htmlUrl="https://www.tandfonline.com/toc/cips20/current" xmlUrl="https://www.tandfonline.com/feed/rss/cips20" />
+<!-- NEW: Planning Perspectives (Planning History) -->
+<outline type="rss" title="Planning Perspectives" text="Planning Perspectives" htmlUrl="https://www.tandfonline.com/toc/rppe20/current" xmlUrl="https://www.tandfonline.com/feed/rss/rppe20" />
+<!-- NEW: Journal of Planning History -->
+<outline type="rss" title="Journal of Planning History" text="Journal of Planning History" htmlUrl="https://journals.sagepub.com/home/jph" xmlUrl="https://journals.sagepub.com/action/showFeed?ui=0&amp;mi=ehikzz&amp;ai=2b4&amp;jc=jpha&amp;type=etoc&amp;feed=rss" />
+</outline>
+
+<!-- ==================== NEW: URBAN & PLANNING HISTORY ==================== -->
+<outline title="Academic: Urban &amp; Planning History" text="Academic: Urban &amp; Planning History">
+<!-- NEW: Urban History -->
+<outline type="rss" title="Urban History" text="Urban History" htmlUrl="https://www.cambridge.org/core/journals/urban-history" xmlUrl="https://www.cambridge.org/core/rss/product/id/E5F78CE14CFAB29C7F2FCCC4D498BA17" />
+</outline>
+
+<!-- ==================== EXISTING FOLDERS ==================== -->
+<outline title="Data Analysis" text="Data Analysis">
+<outline title="FlowingData" type="rss" text="FlowingData" xmlUrl="http://feeds.feedburner.com/FlowingData" htmlUrl="https://flowingdata.com" />
+<outline text="Infographics - Cool Infographics" title="Infographics - Cool Infographics" htmlUrl="https://coolinfographics.com/blog/" type="rss" xmlUrl="http://feeds.feedburner.com/CoolInfographics" />
+<outline xmlUrl="http://feeds.feedburner.com/InformationIsBeautiful" text="Information is Beautiful" type="rss" title="Information is Beautiful" htmlUrl="https://informationisbeautiful.net" />
+<outline htmlUrl="https://visual.ly" text="Visual.ly" xmlUrl="http://visual.ly/top_rss.xml" title="Visual.ly" type="rss" />
+</outline>
+
+<outline title="Mappa" text="Mappa">
+<outline htmlUrl="https://mapoftheweek.blogspot.com/" xmlUrl="http://mapoftheweek.blogspot.com/feeds/posts/default" type="rss" text="Map of the Week" title="Map of the Week" />
+<outline htmlUrl="https://blog.google/products/maps/" title="Maps" text="Maps" type="rss" xmlUrl="http://google-latlong.blogspot.com/atom.xml" />
+<outline xmlUrl="http://feeds.feedburner.com/GoogleMapsMania" title="Maps Mania" type="rss" htmlUrl="http://googlemapsmania.blogspot.com/" text="Maps Mania" />
+<outline xmlUrl="http://www.opengeodata.org/?feed=rss2" text="OpenStreetMap Blog" title="OpenStreetMap Blog" htmlUrl="https://blog.openstreetmap.org" type="rss" />
+<outline text="Maps on the Web" htmlUrl="https://mapsontheweb.tumblr.com/" type="rss" title="Maps on the Web" xmlUrl="http://mapsontheweb.tumblr.com/rss" />
+<outline text="The Map Room" title="The Map Room" type="rss" xmlUrl="http://feeds.feedburner.com/maproom" htmlUrl="https://www.maproomblog.com" />
+</outline>
+
+<outline text="TECH" title="TECH">
+<outline text="Google News" type="rss" title="Google News" htmlUrl="https://news.google.com/" xmlUrl="https://news.google.com/rss/topics/CAAqJAgKIh5DQkFTRUFvSEwyMHZNRzFyZWhJRlpXNHRSMElvQUFQAQ?hl=en-GB&amp;gl=GB&amp;ceid=GB%3Aen&amp;oc=11" />
+<outline xmlUrl="https://news.google.com/rss/topics/CAAqJQgKIh9DQkFTRVFvSUwyMHZNRFptYUhNU0JXVnVMVWRDS0FBUAE?hl=en-GB&amp;gl=GB&amp;ceid=GB%3Aen&amp;oc=11" title="Google News" text="Google News" htmlUrl="https://news.google.com/" type="rss" />
+</outline>
+
+<outline text="The Urban" title="The Urban">
+<outline type="rss" text="Planetizen" title="Planetizen" xmlUrl="http://www.planetizen.com/frontpage/feed" htmlUrl="https://www.planetizen.com/" />
+<outline xmlUrl="http://popupcity.net/feed/" text="Pop-Up City" title="Pop-Up City" type="rss" htmlUrl="https://popupcity.net" />
+<outline text="Next City" type="rss" title="Next City" htmlUrl="https://nextcity.org" xmlUrl="http://feeds.feedburner.com/americancity" />
+<outline text="Urban Omnibus" type="rss" xmlUrl="http://urbanomnibus.net/feed/" htmlUrl="https://urbanomnibus.net/" title="Urban Omnibus" />
+</outline>
+
+<outline text="신문" title="신문">
+<outline type="rss" text="한겨레" htmlUrl="https://www.hani.co.kr" xmlUrl="https://www.hani.co.kr/rss" title="한겨레" />
+<outline title="세상을 바꾸는 시민언론 민들레 - 전체기사" text="세상을 바꾸는 시민언론 민들레 - 전체기사" xmlUrl="https://www.mindlenews.com/rss/allArticle.xml" htmlUrl="https://www.mindlenews.com" type="rss" />
+<outline title="경남도민일보 - 전체기사" type="rss" htmlUrl="https://www.idomin.com" text="경남도민일보 - 전체기사" xmlUrl="https://cdn.idomin.com/rss/gns_allArticle.xml" />
+</outline>
+
+</body>
+</opml>

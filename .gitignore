@@ -1,0 +1,13 @@
+# 데이터베이스
+data/*.db
+
+# 보고서 (로컬용)
+reports/
+
+# 환경설정
+.env
+__pycache__/
+*.pyc
+
+# API 키 포함될 수 있는 파일
+config_local.yaml

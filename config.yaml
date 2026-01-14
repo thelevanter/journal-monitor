@@ -1,0 +1,71 @@
+# Journal Monitor Configuration
+# 케이의 학술저널 RSS 모니터링 시스템
+
+# 경로 설정 (케이 Mac에 맞게 수정 필요)
+paths:
+  opml_file: "/Users/DW/G-Drive2T/Documents/JournalMonitor/Feeds.opml"
+  database: "/Users/DW/G-Drive2T/Documents/JournalMonitor/data/journals.db"
+  reports_dir: "/Users/DW/G-Drive2T/Documents/JournalMonitor/reports"
+  templates_dir: "./templates"
+
+# Anthropic API 설정
+anthropic:
+  api_key: "${ANTHROPIC_API_KEY}"  # 환경변수에서 읽어옴
+  model: "claude-sonnet-4-20250514"
+  max_tokens: 1024
+
+# RSS 수집 설정
+rss:
+  fetch_hours: 24           # 최근 N시간 내 논문만 수집
+  max_articles_per_feed: 20 # 피드당 최대 수집 수
+  request_delay: 0.5        # 피드 간 요청 딜레이 (초)
+categories:
+    - "Academic: Geography Journals"
+    - "Academic: Sociology Journals"
+    - "Academic: Planning Studies"
+
+
+# 보고서 설정
+report:
+  language: "korean"        # 요약 언어
+  max_summary_length: 150   # 요약 최대 글자수
+  include_abstract: true    # 초록 포함 여부
+  
+# 필터링 (관심 키워드 - 우선순위 높게 표시)
+keywords:
+  priority_high:
+    - "governmentality"
+    - "통치성"
+    - "assemblage"
+    - "어셈블리지"
+    - "new materialism"
+    - "신유물론"
+    - "Foucault"
+    - "푸코"
+    - "Deleuze"
+    - "들뢰즈"
+    - "Lefebvre"
+    - "르페브르"
+    - "urban politics"
+    - "도시정치"
+    - "housing"
+    - "주거"
+    - "gentrification"
+    - "젠트리피케이션"
+  priority_medium:
+    - "urban planning"
+    - "도시계획"
+    - "political geography"
+    - "정치지리"
+    - "spatial"
+    - "공간"
+    - "territory"
+    - "영토"
+    - "mobility"
+    - "이동성"
+
+# Craft 연동 설정
+craft:
+  enabled: true
+  space_name: "Research"    # Craft 스페이스 이름
+  daily_note: true          # Daily Note에 추가

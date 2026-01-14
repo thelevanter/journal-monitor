@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- 고유 식별자 -->
+    <key>Label</key>
+    <string>com.kay.journalmonitor</string>
+    
+    <!-- 실행할 프로그램 -->
+    <key>ProgramArguments</key>
+    <array>
+        <!-- Python 경로 (케이 Mac에 맞게 수정 필요) -->
+        <string>/usr/bin/python3</string>
+        <!-- 스크립트 경로 -->
+        <string>/Users/YOUR_USERNAME/Documents/JournalMonitor/main.py</string>
+    </array>
+    
+    <!-- 환경 변수 -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>ANTHROPIC_API_KEY</key>
+        <string>YOUR_API_KEY_HERE</string>
+    </dict>
+    
+    <!-- 실행 스케줄: 매일 오전 7시 -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>7</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+    
+    <!-- 작업 디렉토리 -->
+    <key>WorkingDirectory</key>
+    <string>/Users/YOUR_USERNAME/Documents/JournalMonitor</string>
+    
+    <!-- 로그 파일 -->
+    <key>StandardOutPath</key>
+    <string>/Users/YOUR_USERNAME/Documents/JournalMonitor/logs/stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/YOUR_USERNAME/Documents/JournalMonitor/logs/stderr.log</string>
+    
+    <!-- 실행 시 로드 -->
+    <key>RunAtLoad</key>
+    <false/>
+    
+    <!-- 네트워크 필요 -->
+    <key>NetworkState</key>
+    <true/>
+</dict>
+</plist>

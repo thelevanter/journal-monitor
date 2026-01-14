@@ -3,9 +3,9 @@
 
 # 경로 설정 (케이 Mac에 맞게 수정 필요)
 paths:
-  opml_file: "/Users/DW/G-Drive2T/Documents/JournalMonitor/Feeds.opml"
-  database: "/Users/DW/G-Drive2T/Documents/JournalMonitor/data/journals.db"
-  reports_dir: "/Users/DW/G-Drive2T/Documents/JournalMonitor/reports"
+   opml_file: "./Feeds.opml"
+  database: "./data/journals.db"
+  reports_dir: "./reports"
   templates_dir: "./templates"
 
 # Anthropic API 설정

@@ -2,8 +2,8 @@ name: Daily Journal Monitor
 
 on:
   schedule:
-    - cron: '0 22 * * *'  # UTC 22:00 = 한국 오전 7시
-  workflow_dispatch:  # 수동 실행 가능
+    - cron: '0 22 * * *'
+  workflow_dispatch:
 
 jobs:
   collect:
@@ -24,6 +24,36 @@ jobs:
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       run: python main.py --hours 24
+    
+    - name: Send to Craft
+      env:
+        GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+        GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+      run: |
+        python -c "
+        import smtplib
+        from email.mime.text import MIMEText
+        from pathlib import Path
+        import os
+        
+        reports = list(Path('reports').glob('*.md'))
+        if not reports:
+            print('No reports found')
+            exit(0)
+        
+        report = max(reports, key=lambda x: x.stat().st_mtime)
+        content = report.read_text()
+        
+        msg = MIMEText(content)
+        msg['Subject'] = f'📚 학술저널 브리핑 {report.stem}'
+        msg['From'] = os.environ['GMAIL_ADDRESS']
+        msg['To'] = 'mangos-unite-6rg@craft.me'
+        
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
+            s.login(os.environ['GMAIL_ADDRESS'], os.environ['GMAIL_APP_PASSWORD'])
+            s.send_message(msg)
+        print(f'Sent: {report.name}')
+        "
     
     - name: Upload reports
       uses: actions/upload-artifact@v4

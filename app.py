@@ -16,6 +16,28 @@ import json
 import networkx as nx
 from pyvis.network import Network
 import tempfile
+import os
+import re
+
+# 토픽 클러스터링
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+
+# 지도 시각화
+try:
+    import folium
+    from streamlit_folium import folium_static
+    FOLIUM_AVAILABLE = True
+except ImportError:
+    FOLIUM_AVAILABLE = False
+
+# Claude API
+try:
+    from anthropic import Anthropic
+    ANTHROPIC_AVAILABLE = True
+except ImportError:
+    ANTHROPIC_AVAILABLE = False
 
 # 페이지 설정
 st.set_page_config(
@@ -1038,6 +1060,153 @@ def render_period_analysis(db: DashboardDB):
                 priority_emoji = {'high': '🔴', 'medium': '🟡'}.get(article.get('priority'), '⚪')
                 title = article.get('title_ko') or article.get('title')
                 st.markdown(f"- {priority_emoji} **{title}**")
+    
+    st.divider()
+    
+    # ========== 6. 이론 연결망 ==========
+    st.subheader("🧠 이론 연결망")
+    
+    st.markdown("""
+    논문에서 언급된 이론가와 이론적 개념들의 연결 패턴을 분석합니다.
+    - 🟣 **보라**: 이론가 (Foucault, Deleuze, Lefebvre 등)
+    - 🟦 **파랑**: 이론적 개념 (governmentality, assemblage 등)
+    """)
+    
+    theory_data = analyze_theory_connections(db, days)
+    
+    if theory_data['theorists'] or theory_data['concepts']:
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if theory_data['theorists']:
+                st.markdown("**📚 주요 이론가 언급 횟수**")
+                for name, count in sorted(theory_data['theorists'].items(), key=lambda x: -x[1])[:10]:
+                    st.markdown(f"- {name}: **{count}**회")
+        
+        with col2:
+            if theory_data['concepts']:
+                st.markdown("**💡 주요 개념 언급 횟수**")
+                for name, count in sorted(theory_data['concepts'].items(), key=lambda x: -x[1])[:10]:
+                    st.markdown(f"- {name}: **{count}**회")
+        
+        st.markdown("---")
+        st.markdown("**이론가-개념 연결망**")
+        render_theory_network(theory_data)
+    else:
+        st.info("해당 기간에 이론적 데이터가 부족합니다. 기간을 늘려보세요.")
+    
+    st.divider()
+    
+    # ========== 7. 토픽 클러스터링 ==========
+    st.subheader("📚 토픽 클러스터링")
+    
+    st.markdown("""
+    논문 초록을 기반으로 자동 클러스터링하여 연구 주제를 발견합니다.  
+    TF-IDF + KMeans 알고리즘 사용.
+    """)
+    
+    col1, col2 = st.columns([3, 1])
+    with col2:
+        n_clusters = st.slider("클러스터 수", 3, 10, 5)
+    
+    clustering_result = perform_topic_clustering(db, days, n_clusters=n_clusters)
+    
+    if clustering_result['error']:
+        st.warning(f"클러스터링 실패: {clustering_result['error']}. 데이터가 더 필요합니다.")
+    else:
+        # 클러스터 시각화 (Scatter plot)
+        df_cluster = clustering_result['articles']
+        
+        fig = px.scatter(
+            df_cluster,
+            x='x',
+            y='y',
+            color='cluster',
+            hover_data=['title_ko', 'priority'],
+            title="논문 클러스터 분포 (PCA 2D)",
+            color_continuous_scale='viridis'
+        )
+        fig.update_layout(height=500)
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # 클러스터별 대표 키워드
+        st.markdown("**클러스터별 대표 키워드**")
+        
+        cols = st.columns(min(n_clusters, 5))
+        for i, keywords in clustering_result['clusters'].items():
+            with cols[i % 5]:
+                cluster_count = len(df_cluster[df_cluster['cluster'] == i])
+                st.markdown(f"**클러스터 {i+1}** ({cluster_count}편)")
+                st.caption(", ".join(keywords))
+        
+        # 클러스터별 논문 목록
+        with st.expander("클러스터별 논문 목록 보기"):
+            for i in range(n_clusters):
+                cluster_articles = df_cluster[df_cluster['cluster'] == i]
+                st.markdown(f"### 클러스터 {i+1}: {', '.join(clustering_result['clusters'][i][:3])}")
+                for _, art in cluster_articles.head(5).iterrows():
+                    title = art.get('title_ko') or art.get('title')
+                    priority_emoji = {'high': '🔴', 'medium': '🟡'}.get(art.get('priority'), '⚪')
+                    st.markdown(f"- {priority_emoji} {title}")
+                st.markdown("---")
+    
+    st.divider()
+    
+    # ========== 8. 사례 지역 지도 ==========
+    st.subheader("🗺️ 사례 지역 분포")
+    
+    st.markdown("""
+    논문에서 언급된 도시/지역을 지도에 표시합니다.  
+    원 크기는 언급 횟수에 비례합니다.
+    """)
+    
+    location_df = extract_locations(db, days)
+    
+    if not location_df.empty:
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            render_location_map(location_df)
+        
+        with col2:
+            st.markdown("**🏙️ 상위 언급 도시**")
+            for _, row in location_df.head(15).iterrows():
+                st.markdown(f"- {row['city']}: **{row['count']}**회")
+            
+            # 한국 도시 하이라이트
+            korea_cities = location_df[location_df['city'].str.lower().isin(['seoul', 'busan', 'incheon', 'daegu', 'gwangju', 'daejeon', 'ulsan', 'jeju'])]
+            if not korea_cities.empty:
+                st.markdown("---")
+                st.markdown("🇰🇷 **한국 도시**")
+                for _, row in korea_cities.iterrows():
+                    st.markdown(f"- {row['city']}: **{row['count']}**회")
+    else:
+        st.info("해당 기간에 지역 데이터가 없습니다.")
+    
+    st.divider()
+    
+    # ========== 9. AI 연구 인사이트 ==========
+    st.subheader("🤖 AI 연구 인사이트")
+    
+    st.markdown("""
+    Claude AI가 수집된 논문들을 분석하여 연구 트렌드, 걸, 떠오르는 질문 등을 제안합니다.
+    """)
+    
+    if not ANTHROPIC_AVAILABLE:
+        st.warning("Anthropic 라이브러리가 설치되지 않았습니다.")
+    elif not os.environ.get('ANTHROPIC_API_KEY'):
+        st.warning("ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다.")
+    else:
+        if st.button("🤖 AI 인사이트 생성", type="primary"):
+            with st.spinner("Claude가 논문을 분석 중..."):
+                insights = generate_ai_insights(db, days, period_keywords)
+                
+                if insights:
+                    st.markdown(insights)
+                else:
+                    st.error("인사이트 생성에 실패했습니다.")
+        else:
+            st.info("버튼을 클릭하면 Claude AI가 연구 트렌드를 분석합니다.")
 
 
 def get_period_stats(db: DashboardDB, days: int) -> dict:
@@ -1256,6 +1425,377 @@ def render_keyword_network(cooccurrence_df: pd.DataFrame, keyword_stats: pd.Data
     
     # Streamlit에 렌더링
     components.html(html_content, height=520, scrolling=True)
+
+
+# ========== 이론 연결망 분석 ==========
+THEORISTS = [
+    "Foucault", "Deleuze", "Guattari", "Lefebvre", "Harvey", "Massey", 
+    "Latour", "Haraway", "Barad", "Bennett", "Agamben", "Butler",
+    "Bourdieu", "Gramsci", "Marx", "Weber", "Simmel", "Sassen",
+    "Castells", "Brenner", "Smith", "Jessop", "Peck", "Theodore"
+]
+
+THEORETICAL_CONCEPTS = [
+    "governmentality", "biopolitics", "discipline", "panopticon",
+    "assemblage", "rhizome", "deterritorialization", "becoming",
+    "new materialism", "posthuman", "actor-network", "ANT",
+    "right to the city", "production of space", "spatial triad",
+    "territory", "sovereignty", "borders", "mobility",
+    "infrastructure", "platform", "smart city", "algorithm",
+    "neoliberalism", "gentrification", "displacement", "accumulation"
+]
+
+
+def analyze_theory_connections(db: DashboardDB, days: int) -> dict:
+    """이론가/개념 연결 분석"""
+    date_from = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+    
+    query = """
+        SELECT title, abstract, keywords_matched
+        FROM articles
+        WHERE DATE(fetched_at) >= ?
+          AND abstract IS NOT NULL 
+          AND LENGTH(abstract) > 100
+    """
+    
+    with db.get_connection() as conn:
+        df = pd.read_sql_query(query, conn, params=[date_from])
+    
+    if df.empty:
+        return {'theorists': {}, 'concepts': {}, 'connections': []}
+    
+    # 이론가 및 개념 카운트
+    theorist_counts = {t: 0 for t in THEORISTS}
+    concept_counts = {c: 0 for c in THEORETICAL_CONCEPTS}
+    connections = {}  # (이론가, 개념) 쌍
+    
+    for _, row in df.iterrows():
+        text = f"{row['title']} {row['abstract']}".lower()
+        
+        found_theorists = []
+        found_concepts = []
+        
+        for t in THEORISTS:
+            if t.lower() in text:
+                theorist_counts[t] += 1
+                found_theorists.append(t)
+        
+        for c in THEORETICAL_CONCEPTS:
+            if c.lower() in text:
+                concept_counts[c] += 1
+                found_concepts.append(c)
+        
+        # 연결 기록
+        for t in found_theorists:
+            for c in found_concepts:
+                key = (t, c)
+                connections[key] = connections.get(key, 0) + 1
+    
+    # 필터링 (0보다 큰 것만)
+    theorist_counts = {k: v for k, v in theorist_counts.items() if v > 0}
+    concept_counts = {k: v for k, v in concept_counts.items() if v > 0}
+    connections = [(k[0], k[1], v) for k, v in connections.items() if v > 0]
+    connections.sort(key=lambda x: -x[2])
+    
+    return {
+        'theorists': theorist_counts,
+        'concepts': concept_counts,
+        'connections': connections[:30]  # Top 30
+    }
+
+
+def render_theory_network(theory_data: dict):
+    """이론 연결망 시각화"""
+    if not theory_data['connections']:
+        st.info("이론적 연결 데이터가 부족합니다.")
+        return
+    
+    G = nx.Graph()
+    
+    # 노드 추가
+    for t, count in theory_data['theorists'].items():
+        G.add_node(t, node_type='theorist', count=count)
+    
+    for c, count in theory_data['concepts'].items():
+        G.add_node(c, node_type='concept', count=count)
+    
+    # 엣지 추가
+    for t, c, weight in theory_data['connections']:
+        G.add_edge(t, c, weight=weight)
+    
+    # Pyvis
+    net = Network(height='500px', width='100%', bgcolor='#ffffff', font_color='#333333')
+    net.barnes_hut(gravity=-2000, central_gravity=0.3, spring_length=150)
+    
+    for node in G.nodes(data=True):
+        name = node[0]
+        data = node[1]
+        
+        if data.get('node_type') == 'theorist':
+            color = '#9b59b6'  # 보라
+            shape = 'dot'
+        else:
+            color = '#3498db'  # 파랑
+            shape = 'box'
+        
+        size = 15 + data.get('count', 1) * 2
+        net.add_node(name, label=name, color=color, size=size, shape=shape,
+                    title=f"{name}\n등장: {data.get('count', 0)}회")
+    
+    for edge in G.edges(data=True):
+        net.add_edge(edge[0], edge[1], value=edge[2]['weight'],
+                    title=f"연결: {edge[2]['weight']}회")
+    
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w', encoding='utf-8') as f:
+        net.save_graph(f.name)
+        html_content = open(f.name, 'r', encoding='utf-8').read()
+    
+    components.html(html_content, height=520, scrolling=True)
+
+
+# ========== AI 인사이트 ==========
+def generate_ai_insights(db: DashboardDB, days: int, keyword_stats: pd.DataFrame) -> str:
+    """Claude API로 AI 인사이트 생성"""
+    if not ANTHROPIC_AVAILABLE:
+        return None
+    
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        return None
+    
+    date_from = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+    
+    # 데이터 수집
+    query = """
+        SELECT title, title_ko, abstract, priority, keywords_matched
+        FROM articles
+        WHERE DATE(fetched_at) >= ?
+          AND priority IN ('high', 'medium')
+        ORDER BY priority DESC, fetched_at DESC
+        LIMIT 30
+    """
+    
+    with db.get_connection() as conn:
+        df = pd.read_sql_query(query, conn, params=[date_from])
+    
+    if df.empty:
+        return "분석할 논문이 부족합니다."
+    
+    # 논문 요약 준비
+    articles_summary = []
+    for _, row in df.iterrows():
+        title = row['title_ko'] or row['title']
+        keywords = row['keywords_matched'] or ''
+        articles_summary.append(f"- [{row['priority'].upper()}] {title} (키워드: {keywords})")
+    
+    articles_text = "\n".join(articles_summary[:20])
+    
+    # 키워드 통계
+    if not keyword_stats.empty:
+        top_keywords = keyword_stats.head(10)['keyword'].tolist()
+        keywords_text = ", ".join(top_keywords)
+    else:
+        keywords_text = "데이터 없음"
+    
+    prompt = f"""
+당신은 인문지리학/도시연구 전문가입니다. 아래는 최근 {days}일간 수집된 학술논문 목록입니다.
+
+**주요 키워드**: {keywords_text}
+
+**논문 목록**:
+{articles_text}
+
+위 데이터를 바탕으로 다음을 한국어로 작성해주세요:
+
+1. **연구 트렌드 요약** (3-4문장): 이 기간 어떤 주제가 활발히 연구되고 있는지
+
+2. **연구 걸/기회** (2-3개): 아직 충분히 탐구되지 않은 영역, 새로운 연구 기회
+
+3. **떠오르는 연구 질문** (2-3개): 이 논문들에서 발견되는 미해결 질문들
+
+4. **통찰성/인사이트** (2-3개): 독자에게 도움이 될 흥미로운 발견
+
+간결하게 작성해주세요.
+"""
+    
+    try:
+        client = Anthropic(api_key=api_key)
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=1500,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.content[0].text
+    except Exception as e:
+        return f"오류 발생: {str(e)}"
+
+
+# ========== 토픽 클러스터링 ==========
+def perform_topic_clustering(db: DashboardDB, days: int, n_clusters: int = 5) -> dict:
+    """논문 초록 기반 토픽 클러스터링 (TF-IDF + KMeans)"""
+    date_from = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+    
+    query = """
+        SELECT id, title, title_ko, abstract, priority
+        FROM articles
+        WHERE DATE(fetched_at) >= ?
+          AND abstract IS NOT NULL 
+          AND LENGTH(abstract) > 100
+    """
+    
+    with db.get_connection() as conn:
+        df = pd.read_sql_query(query, conn, params=[date_from])
+    
+    if len(df) < n_clusters:
+        return {'clusters': [], 'articles': df, 'error': '데이터 부족'}
+    
+    # TF-IDF 벡터화
+    abstracts = df['abstract'].tolist()
+    
+    vectorizer = TfidfVectorizer(
+        max_features=1000,
+        stop_words='english',
+        ngram_range=(1, 2),
+        min_df=2
+    )
+    
+    try:
+        tfidf_matrix = vectorizer.fit_transform(abstracts)
+    except:
+        return {'clusters': [], 'articles': df, 'error': 'TF-IDF 실패'}
+    
+    # KMeans 클러스터링
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    df['cluster'] = kmeans.fit_predict(tfidf_matrix)
+    
+    # PCA로 2D 축소
+    pca = PCA(n_components=2, random_state=42)
+    coords = pca.fit_transform(tfidf_matrix.toarray())
+    df['x'] = coords[:, 0]
+    df['y'] = coords[:, 1]
+    
+    # 클러스터별 대표 키워드 추출
+    feature_names = vectorizer.get_feature_names_out()
+    cluster_keywords = {}
+    
+    for i in range(n_clusters):
+        center = kmeans.cluster_centers_[i]
+        top_indices = center.argsort()[-5:][::-1]
+        cluster_keywords[i] = [feature_names[idx] for idx in top_indices]
+    
+    return {
+        'clusters': cluster_keywords,
+        'articles': df,
+        'error': None
+    }
+
+
+# ========== 사례 지역 추출 및 지도 ==========
+CITY_COORDS = {
+    # 아시아
+    "seoul": (37.5665, 126.9780), "tokyo": (35.6762, 139.6503), 
+    "beijing": (39.9042, 116.4074), "shanghai": (31.2304, 121.4737),
+    "hong kong": (22.3193, 114.1694), "singapore": (1.3521, 103.8198),
+    "bangkok": (13.7563, 100.5018), "mumbai": (19.0760, 72.8777),
+    "delhi": (28.7041, 77.1025), "jakarta": (-6.2088, 106.8456),
+    # 유럽
+    "london": (51.5074, -0.1278), "paris": (48.8566, 2.3522),
+    "berlin": (52.5200, 13.4050), "amsterdam": (52.3676, 4.9041),
+    "barcelona": (41.3851, 2.1734), "rome": (41.9028, 12.4964),
+    "vienna": (48.2082, 16.3738), "copenhagen": (55.6761, 12.5683),
+    "stockholm": (59.3293, 18.0686), "oslo": (59.9139, 10.7522),
+    # 북미
+    "new york": (40.7128, -74.0060), "los angeles": (34.0522, -118.2437),
+    "chicago": (41.8781, -87.6298), "san francisco": (37.7749, -122.4194),
+    "toronto": (43.6532, -79.3832), "vancouver": (49.2827, -123.1207),
+    "mexico city": (19.4326, -99.1332),
+    # 남미
+    "sao paulo": (-23.5505, -46.6333), "buenos aires": (-34.6037, -58.3816),
+    "rio de janeiro": (-22.9068, -43.1729), "bogota": (4.7110, -74.0721),
+    # 아프리카/중동
+    "cape town": (-33.9249, 18.4241), "johannesburg": (-26.2041, 28.0473),
+    "cairo": (30.0444, 31.2357), "dubai": (25.2048, 55.2708),
+    "istanbul": (41.0082, 28.9784), "tel aviv": (32.0853, 34.7818),
+    # 오세아니아
+    "sydney": (-33.8688, 151.2093), "melbourne": (-37.8136, 144.9631),
+    "auckland": (-36.8509, 174.7645),
+    # 한국 도시
+    "busan": (35.1796, 129.0756), "incheon": (37.4563, 126.7052),
+    "daegu": (35.8714, 128.6014), "gwangju": (35.1595, 126.8526),
+    "daejeon": (36.3504, 127.3845), "ulsan": (35.5384, 129.3114),
+    "jeju": (33.4996, 126.5312),
+}
+
+
+def extract_locations(db: DashboardDB, days: int) -> pd.DataFrame:
+    """논문에서 지역명 추출"""
+    date_from = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+    
+    query = """
+        SELECT title, abstract
+        FROM articles
+        WHERE DATE(fetched_at) >= ?
+          AND abstract IS NOT NULL
+    """
+    
+    with db.get_connection() as conn:
+        df = pd.read_sql_query(query, conn, params=[date_from])
+    
+    if df.empty:
+        return pd.DataFrame()
+    
+    # 지역명 카운트
+    location_counts = {}
+    
+    for _, row in df.iterrows():
+        text = f"{row['title']} {row['abstract']}".lower()
+        
+        for city in CITY_COORDS.keys():
+            pattern = r'\b' + re.escape(city) + r'\b'
+            if re.search(pattern, text):
+                location_counts[city] = location_counts.get(city, 0) + 1
+    
+    result = []
+    for city, count in location_counts.items():
+        lat, lon = CITY_COORDS[city]
+        result.append({
+            'city': city.title(),
+            'count': count,
+            'lat': lat,
+            'lon': lon
+        })
+    
+    return pd.DataFrame(result).sort_values('count', ascending=False)
+
+
+def render_location_map(location_df: pd.DataFrame):
+    """사례 지역 지도 시각화"""
+    if not FOLIUM_AVAILABLE:
+        st.warning("folium 라이브러리가 설치되지 않았습니다.")
+        return
+    
+    if location_df.empty:
+        st.info("지역 데이터가 없습니다.")
+        return
+    
+    m = folium.Map(location=[20, 0], zoom_start=2, tiles='cartodbpositron')
+    
+    max_count = location_df['count'].max()
+    
+    for _, row in location_df.iterrows():
+        radius = 5 + (row['count'] / max_count) * 25
+        
+        folium.CircleMarker(
+            location=[row['lat'], row['lon']],
+            radius=radius,
+            popup=f"{row['city']}: {row['count']}회",
+            color='#ff4b4b',
+            fill=True,
+            fill_color='#ff4b4b',
+            fill_opacity=0.6
+        ).add_to(m)
+    
+    folium_static(m, width=700, height=400)
 
 
 def render_statistics(db: DashboardDB):

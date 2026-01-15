@@ -1726,6 +1726,10 @@ ACADEMIC_STOPWORDS = [
     'reading', 'continue', 'org', 'features', 'field',
     'family', 'housing', 'children', 'parents', 'human',
     'global', 'economy', 'city', 'cities',
+    # 저자명 및 학술 용어 추가
+    'ritzer', 'george', 'thesis', 'sociology', 'world',
+    'digital', 'online', 'figures', 'fieldwork', 'fields',
+    'economic', 'spatial', 'change', 'development', 'systems',
     # 동사 기본형
     'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did',
     'will', 'shall', 'get', 'got', 'getting', 'go', 'goes', 'going', 'gone',

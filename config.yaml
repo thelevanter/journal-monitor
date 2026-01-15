@@ -50,6 +50,10 @@ keywords:
     - "climate change"
     - "gender geography"
 
+openalex:
+  email: ""  # polite pool용 이메일 (선택사항, 추천)
+  request_delay: 0.2
+
 craft:
   enabled: true
   space_name: "Research"

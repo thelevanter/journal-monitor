@@ -26,6 +26,7 @@ from src.database import Database
 from src.rss_parser import RSSParser
 from src.summarizer import Summarizer
 from src.report_generator import ReportGenerator
+from src.openalex import OpenAlexClient, fetch_missing_abstracts, recheck_priorities, translate_priority_articles
 
 logging.basicConfig(
     level=logging.INFO,
@@ -246,6 +247,7 @@ class JournalMonitor:
     def show_stats(self):
         """통계 출력"""
         stats = self.db.get_stats()
+        abstract_stats = self.db.get_abstract_stats()
         
         print("\n📊 Journal Monitor 통계")
         print("=" * 40)
@@ -254,7 +256,85 @@ class JournalMonitor:
         print(f"높은 관심도:       {stats['high_priority']}편")
         print(f"최근 24시간:       {stats['articles_24h']}편")
         print(f"최근 7일:          {stats['articles_7d']}편")
+        print("-" * 40)
+        print(f"초록 있음:         {abstract_stats['with_abstract']}편")
+        print(f"초록 없음:         {abstract_stats['without_abstract']}편")
+        print(f"OpenAlex 보충가능:  {abstract_stats['can_fetch_from_openalex']}편")
         print("=" * 40)
+    
+    def fetch_abstracts(self, limit: int = 50, translate: bool = True) -> int:
+        """
+        OpenAlex에서 초록 보충
+        
+        Args:
+            limit: 처리할 최대 논문 수
+            translate: 초록 번역 여부
+            
+        Returns:
+            업데이트된 논문 수
+        """
+        logger.info("\n" + "=" * 60)
+        logger.info("🔍 OpenAlex에서 초록 보충 시작")
+        logger.info("=" * 60)
+        
+        # 초록 현황 확인
+        abstract_stats = self.db.get_abstract_stats()
+        logger.info(f"   초록 없는 논문: {abstract_stats['without_abstract']}편")
+        logger.info(f"   보충 가능 (DOI 있음): {abstract_stats['can_fetch_from_openalex']}편")
+        
+        # OpenAlex 이메일 설정
+        email = self.config.get('openalex', {}).get('email')
+        
+        # Summarizer 설정 (번역용)
+        summarizer = self.summarizer if translate else None
+        
+        updated = fetch_missing_abstracts(
+            db=self.db,
+            email=email,
+            limit=limit,
+            translate=translate,
+            summarizer=summarizer
+        )
+        
+        logger.info(f"\n✅ 초록 보충 완료: {updated}편")
+        return updated
+    
+    def recheck_priorities(self) -> tuple:
+        """
+        초록이 있는 논문들의 우선순위 재계산 (키워드 매칭)
+        
+        Returns:
+            (재분류 수, high 수, medium 수)
+        """
+        if not self.summarizer:
+            logger.error("ANTHROPIC_API_KEY가 필요합니다 (키워드 체크용)")
+            return 0, 0, 0
+        
+        logger.info("\n" + "=" * 60)
+        logger.info("🏷️ 우선순위 재계산 (키워드 매칭)")
+        logger.info("=" * 60)
+        
+        return recheck_priorities(self.db, self.summarizer)
+    
+    def translate_priority_only(self, priorities=['high', 'medium']) -> int:
+        """
+        특정 우선순위 논문만 번역
+        
+        Args:
+            priorities: 번역할 우선순위 리스트
+            
+        Returns:
+            번역된 논문 수
+        """
+        if not self.summarizer:
+            logger.error("ANTHROPIC_API_KEY가 필요합니다")
+            return 0
+        
+        logger.info("\n" + "=" * 60)
+        logger.info(f"🌐 우선순위 논문 번역 ({', '.join(priorities)})")
+        logger.info("=" * 60)
+        
+        return translate_priority_articles(self.db, self.summarizer, priorities)
     
     def get_craft_content(self, target_date: date = None) -> str:
         """특정 날짜의 Craft용 콘텐츠 반환"""
@@ -296,6 +376,14 @@ def main():
                         help='통계만 출력')
     parser.add_argument('--craft', action='store_true',
                         help='Craft용 콘텐츠 출력')
+    parser.add_argument('--fetch-abstracts', action='store_true',
+                        help='OpenAlex에서 초록 보충')
+    parser.add_argument('--abstract-limit', type=int, default=50,
+                        help='초록 보충 최대 개수 (기본: 50)')
+    parser.add_argument('--recheck-priority', action='store_true',
+                        help='초록 있는 논문 우선순위 재계산')
+    parser.add_argument('--translate-priority', action='store_true',
+                        help='high/medium 우선순위만 번역')
     
     args = parser.parse_args()
     
@@ -307,6 +395,15 @@ def main():
         elif args.craft:
             content = monitor.get_craft_content()
             print(content)
+        elif args.fetch_abstracts:
+            monitor.fetch_abstracts(
+                limit=args.abstract_limit,
+                translate=not args.no_translate
+            )
+        elif args.recheck_priority:
+            monitor.recheck_priorities()
+        elif args.translate_priority:
+            monitor.translate_priority_only(['high', 'medium'])
         else:
             monitor.run(
                 hours=args.hours,

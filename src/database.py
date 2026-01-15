@@ -8,6 +8,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 import hashlib
+import json
 
 
 class Database:
@@ -28,6 +29,9 @@ class Database:
         """데이터베이스 테이블 초기화"""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
+            
+            # 기존 테이블 마이그레이션 (keywords_matched 컬럼 추가)
+            self._migrate_keywords_column(cursor)
             
             # 저널 테이블
             cursor.execute("""
@@ -61,6 +65,7 @@ class Database:
                     is_read INTEGER DEFAULT 0,
                     is_starred INTEGER DEFAULT 0,
                     notes TEXT,
+                    keywords_matched TEXT,
                     FOREIGN KEY (journal_id) REFERENCES journals(id)
                 )
             """)
@@ -139,11 +144,15 @@ class Database:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             
+            # keywords_matched를 JSON 문자열로 변환
+            keywords = article.get('keywords_matched', [])
+            keywords_json = json.dumps(keywords, ensure_ascii=False) if keywords else None
+            
             cursor.execute("""
                 INSERT INTO articles (
                     journal_id, title, title_ko, authors, abstract, abstract_ko,
-                    summary_ko, url, doi, published_date, hash, priority
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    summary_ko, url, doi, published_date, hash, priority, keywords_matched
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 article.get('journal_id'),
                 article.get('title'),
@@ -156,7 +165,8 @@ class Database:
                 article.get('doi'),
                 article.get('published_date'),
                 article_hash,
-                article.get('priority', 'normal')
+                article.get('priority', 'normal'),
+                keywords_json
             ))
             
             conn.commit()
@@ -190,7 +200,7 @@ class Database:
                     a.published_date DESC
             """, (f'-{hours} hours',))
             
-            return [dict(row) for row in cursor.fetchall()]
+            return self._parse_articles(cursor.fetchall())
     
     def get_articles_by_date(self, date: str) -> List[Dict]:
         """특정 날짜에 수집된 논문 조회"""
@@ -212,7 +222,36 @@ class Database:
                     a.published_date DESC
             """, (date,))
             
-            return [dict(row) for row in cursor.fetchall()]
+            return self._parse_articles(cursor.fetchall())
+    
+    def _parse_articles(self, rows) -> List[Dict]:
+        """
+        조회 결과를 파싱하여 keywords_matched를 리스트로 변환
+        """
+        articles = []
+        for row in rows:
+            article = dict(row)
+            # keywords_matched JSON 파싱
+            kw = article.get('keywords_matched')
+            if kw:
+                try:
+                    article['keywords_matched'] = json.loads(kw)
+                except (json.JSONDecodeError, TypeError):
+                    article['keywords_matched'] = []
+            else:
+                article['keywords_matched'] = []
+            articles.append(article)
+        return articles
+    
+    def _migrate_keywords_column(self, cursor):
+        """
+        기존 DB에 keywords_matched 컬럼이 없으면 추가
+        """
+        cursor.execute("PRAGMA table_info(articles)")
+        columns = [col[1] for col in cursor.fetchall()]
+        
+        if 'keywords_matched' not in columns:
+            cursor.execute("ALTER TABLE articles ADD COLUMN keywords_matched TEXT")
     
     def update_article_translation(self, article_id: int, title_ko: str, 
                                    abstract_ko: str, summary_ko: str):
@@ -276,6 +315,115 @@ class Database:
                 WHERE fetched_at >= datetime('now', '-7 days')
             """)
             stats['articles_7d'] = cursor.fetchone()[0]
+            
+            return stats
+    
+    # ============ OpenAlex API 연동용 메서드 ============
+    
+    def get_articles_without_abstract(self, limit: int = 100) -> List[Dict]:
+        """
+        초록이 없거나 매우 짧은 논문 조회 (OpenAlex로 보충용)
+        
+        Args:
+            limit: 최대 조회 수
+            
+        Returns:
+            DOI가 있고 초록이 없는 논문 리스트
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT a.*, j.name as journal_name, j.category
+                FROM articles a
+                JOIN journals j ON a.journal_id = j.id
+                WHERE a.doi IS NOT NULL 
+                  AND a.doi != ''
+                  AND (a.abstract IS NULL OR LENGTH(a.abstract) < 50)
+                ORDER BY a.fetched_at DESC
+                LIMIT ?
+            """, (limit,))
+            
+            return self._parse_articles(cursor.fetchall())
+    
+    def update_article_abstract(self, article_id: int, abstract: str, 
+                                 abstract_ko: str = None, summary_ko: str = None):
+        """
+        논문 초록 업데이트 (OpenAlex에서 가져온 경우)
+        
+        Args:
+            article_id: 논문 ID
+            abstract: 영문 초록
+            abstract_ko: 한국어 번역 초록 (옵션)
+            summary_ko: 한국어 요약 (옵션)
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            
+            if abstract_ko and summary_ko:
+                cursor.execute("""
+                    UPDATE articles 
+                    SET abstract = ?, abstract_ko = ?, summary_ko = ?
+                    WHERE id = ?
+                """, (abstract, abstract_ko, summary_ko, article_id))
+            else:
+                cursor.execute("""
+                    UPDATE articles SET abstract = ? WHERE id = ?
+                """, (abstract, article_id))
+            
+            conn.commit()
+    
+    def update_article_priority(self, article_id: int, priority: str, 
+                                 keywords_matched: List[str] = None):
+        """
+        논문 우선순위 및 매칭 키워드 업데이트
+        
+        Args:
+            article_id: 논문 ID
+            priority: 우선순위 ('high', 'medium', 'normal')
+            keywords_matched: 매칭된 키워드 리스트
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            
+            keywords_json = json.dumps(keywords_matched, ensure_ascii=False) if keywords_matched else None
+            
+            cursor.execute("""
+                UPDATE articles 
+                SET priority = ?, keywords_matched = ?
+                WHERE id = ?
+            """, (priority, keywords_json, article_id))
+            
+            conn.commit()
+    
+    def get_abstract_stats(self) -> Dict:
+        """
+        초록 보유 현황 통계
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            
+            stats = {}
+            
+            cursor.execute("SELECT COUNT(*) FROM articles")
+            stats['total'] = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(*) FROM articles WHERE abstract IS NOT NULL AND LENGTH(abstract) >= 50")
+            stats['with_abstract'] = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(*) FROM articles WHERE abstract IS NULL OR LENGTH(abstract) < 50")
+            stats['without_abstract'] = cursor.fetchone()[0]
+            
+            cursor.execute("SELECT COUNT(*) FROM articles WHERE doi IS NOT NULL AND doi != ''")
+            stats['with_doi'] = cursor.fetchone()[0]
+            
+            cursor.execute("""
+                SELECT COUNT(*) FROM articles 
+                WHERE doi IS NOT NULL AND doi != '' 
+                  AND (abstract IS NULL OR LENGTH(abstract) < 50)
+            """)
+            stats['can_fetch_from_openalex'] = cursor.fetchone()[0]
             
             return stats
 

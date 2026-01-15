@@ -27,6 +27,7 @@ from src.rss_parser import RSSParser
 from src.summarizer import Summarizer
 from src.report_generator import ReportGenerator
 from src.openalex import OpenAlexClient, fetch_missing_abstracts, recheck_priorities, translate_priority_articles
+from src.semantic_scholar import fetch_abstracts_from_semantic_scholar
 
 logging.basicConfig(
     level=logging.INFO,
@@ -227,6 +228,12 @@ class JournalMonitor:
                 summarizer=None
             )
             logger.info(f"   → {fetched}편 초록 보충됨")
+
+            # Semantic Scholar로 추가 보충
+            ss_fetched = fetch_abstracts_from_semantic_scholar(self.db, limit=50)
+            if ss_fetched > 0:
+                logger.info(f"   → Semantic Scholar로 {ss_fetched}편 추가 보충")
+
         else:
             logger.info("   → 보충할 논문 없음")
         

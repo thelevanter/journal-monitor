@@ -128,12 +128,21 @@ class JournalMonitor:
     def run(self, hours: int = None, translate: bool = True, 
             academic_only: bool = True) -> dict:
         """
-        메인 실행
+        메인 실행 (완전 자동화)
+        
+        워크플로우:
+        1. RSS 피드에서 논문 수집
+        2. 키워드 매칭으로 우선순위 분류 (초록 있는 것만)
+        3. 데이터베이스 저장
+        4. OpenAlex에서 초록 없는 논문 보충
+        5. 새 초록으로 우선순위 재계산
+        6. high/medium 논문만 번역
+        7. 보고서 생성
         
         Args:
             hours: 수집할 시간 범위
             translate: 번역 수행 여부
-            academic_only: 학술 저널만 수집 (categories 설정 없을 때)
+            academic_only: 학술 저널만 수집
             
         Returns:
             실행 결과 요약
@@ -149,10 +158,9 @@ class JournalMonitor:
         logger.info(f"   피드당 최대: {max_per_feed}편")
         logger.info("=" * 60)
         
-        # 1. RSS 피드에서 논문 수집
-        logger.info("\n[1/4] RSS 피드 수집 중...")
+        # ========== 1. RSS 피드에서 논문 수집 ==========
+        logger.info("\n[1/7] RSS 피드 수집 중...")
         
-        # config에서 카테고리 가져오기
         categories = self.config['rss'].get('categories', None)
         if categories:
             logger.info(f"   카테고리: {', '.join(categories)}")
@@ -168,27 +176,28 @@ class JournalMonitor:
         
         logger.info(f"   → {len(articles)}편 수집됨")
         
-        # 2. 번역 및 요약 (API 키가 있고, 번역 옵션이 켜진 경우)
-        if translate and self.summarizer:
-            logger.info("\n[2/4] 번역 및 요약 중...")
-            articles = self.summarizer.batch_translate(articles)
-        else:
-            logger.info("\n[2/4] 번역 스킵")
-            # 우선순위만 체크
-            if self.summarizer:
-                for article in articles:
-                    priority, keywords = self.summarizer._check_priority(
-                        article.get('title', ''),
-                        article.get('abstract', '')
-                    )
-                    article['priority'] = priority
-                    article['keywords_matched'] = keywords
+        # ========== 2. 키워드 매칭 (초록 있는 것만 우선순위 분류) ==========
+        logger.info("\n[2/7] 키워드 매칭으로 우선순위 분류...")
         
-        # 3. 데이터베이스 저장
-        logger.info("\n[3/4] 데이터베이스 저장 중...")
+        if self.summarizer:
+            for article in articles:
+                priority, keywords = self.summarizer._check_priority(
+                    article.get('title', ''),
+                    article.get('abstract', '')
+                )
+                article['priority'] = priority
+                article['keywords_matched'] = keywords
+            
+            high_count = sum(1 for a in articles if a.get('priority') == 'high')
+            medium_count = sum(1 for a in articles if a.get('priority') == 'medium')
+            logger.info(f"   → 🔴 high: {high_count}편, 🟡 medium: {medium_count}편")
+        else:
+            logger.info("   → API 키 없음, 스킵")
+        
+        # ========== 3. 데이터베이스 저장 ==========
+        logger.info("\n[3/7] 데이터베이스 저장 중...")
         new_count = 0
         for article in articles:
-            # 저널 등록
             journal_id = self.db.get_or_create_journal(
                 name=article.get('journal_name', 'Unknown'),
                 feed_url='',
@@ -196,24 +205,62 @@ class JournalMonitor:
             )
             article['journal_id'] = journal_id
             
-            # 논문 저장
             article_id = self.db.insert_article(article)
             if article_id:
                 new_count += 1
         
         logger.info(f"   → {new_count}편 새로 저장 (중복 제외)")
         
-        # 4. 보고서 생성
-        logger.info("\n[4/4] 보고서 생성 중...")
+        # ========== 4. OpenAlex에서 초록 보충 ==========
+        logger.info("\n[4/7] OpenAlex에서 초록 보충...")
         
-        # 오늘 저장된 논문으로 보고서 생성
+        abstract_stats = self.db.get_abstract_stats()
+        can_fetch = abstract_stats.get('can_fetch_from_openalex', 0)
+        
+        if can_fetch > 0:
+            email = self.config.get('openalex', {}).get('email')
+            fetched = fetch_missing_abstracts(
+                db=self.db,
+                email=email,
+                limit=can_fetch,
+                translate=False,  # 여기선 번역 안 함
+                summarizer=None
+            )
+            logger.info(f"   → {fetched}편 초록 보충됨")
+        else:
+            logger.info("   → 보충할 논문 없음")
+        
+        # ========== 5. 새 초록으로 우선순위 재계산 ==========
+        logger.info("\n[5/7] 우선순위 재계산...")
+        
+        if self.summarizer:
+            rechecked, new_high, new_medium = recheck_priorities(self.db, self.summarizer)
+            if rechecked > 0:
+                logger.info(f"   → 재분류: 🔴 +{new_high}, 🟡 +{new_medium}")
+            else:
+                logger.info("   → 재분류 대상 없음")
+        else:
+            logger.info("   → API 키 없음, 스킵")
+        
+        # ========== 6. high/medium만 번역 ==========
+        if translate and self.summarizer:
+            logger.info("\n[6/7] high/medium 논문 번역...")
+            translated = translate_priority_articles(
+                self.db, self.summarizer, ['high', 'medium']
+            )
+            logger.info(f"   → {translated}편 번역 완료")
+        else:
+            logger.info("\n[6/7] 번역 스킵")
+        
+        # ========== 7. 보고서 생성 ==========
+        logger.info("\n[7/7] 보고서 생성 중...")
+        
         today_articles = self.db.get_articles_by_date(date.today().isoformat())
         
         if today_articles:
             report_path = self.report_gen.generate_report(today_articles)
             logger.info(f"   → 로컬 보고서: {report_path}")
             
-            # 보고서 기록 저장
             summary = self.report_gen.get_report_summary(today_articles)
             self.db.save_report_record(
                 report_date=date.today().isoformat(),
@@ -222,20 +269,21 @@ class JournalMonitor:
                 file_path=report_path
             )
             
-            # Craft 콘텐츠 생성
             craft_content = self.report_gen.generate_craft_content(today_articles)
             craft_path = Path(report_path).parent / f"craft_{date.today().strftime('%Y%m%d')}.md"
             with open(craft_path, 'w', encoding='utf-8') as f:
                 f.write(craft_content)
             logger.info(f"   → Craft용 콘텐츠: {craft_path}")
         
-        # 결과 요약
+        # ========== 결과 요약 ==========
         logger.info("\n" + "=" * 60)
         logger.info("✅ 완료!")
         stats = self.db.get_stats()
+        abstract_stats = self.db.get_abstract_stats()
         logger.info(f"   총 저장 논문: {stats['total_articles']}편")
         logger.info(f"   오늘 수집: {new_count}편")
         logger.info(f"   높은 관심도: {stats['high_priority']}편")
+        logger.info(f"   초록 보유율: {abstract_stats['with_abstract']}/{stats['total_articles']}편")
         logger.info("=" * 60)
         
         return {

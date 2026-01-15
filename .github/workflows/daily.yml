@@ -46,7 +46,7 @@ jobs:
         
         r = resend.Emails.send({
             'from': 'Journal Monitor <onboarding@resend.dev>',
-            'to': 'mangos-unite-6rg@craft.me',
+            'to': 'dw.gimm@gmail.com',
             'subject': f'📚 학술저널 브리핑 {report.stem}',
             'text': content
         })

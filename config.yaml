@@ -33,15 +33,22 @@ keywords:
     - "Foucault"
     - "Deleuze"
     - "Lefebvre"
-    - "urban politics"
-    - "housing"
-    - "gentrification"
-  priority_medium:
-    - "urban planning"
-    - "political geography"
-    - "spatial"
     - "territory"
     - "mobility"
+    - "infrastructure"
+    - "ai"
+    - "sovereignty"
+    - "port-city"
+    - "waterfront"
+  priority_medium:
+    - "urban politics"
+    - "housing"
+    - "megaproject"
+    - "political geography"
+    - "urban planning"
+    - "urban sociology"
+    - "climate change"
+    - "gender geography"
 
 craft:
   enabled: true

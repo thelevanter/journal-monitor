@@ -11,3 +11,4 @@ __pycache__/
 
 # API 키 포함될 수 있는 파일
 config_local.yaml
+!data/journals.db

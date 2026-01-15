@@ -36,7 +36,7 @@ jobs:
         
         resend.api_key = os.environ['RESEND_API_KEY']
         
-        reports = list(Path('reports').glob('*.md'))
+        reports = list(Path('reports').glob('journal_brief_*.md'))
         if not reports:
             print('No reports found')
             exit(0)

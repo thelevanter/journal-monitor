@@ -566,7 +566,7 @@ def main():
         
         # 키워드 클릭으로 메뉴 이동 시 반영
         default_index = 0
-        menu_options = ["🏠 홈", "📑 논문 목록", "📈 통계", "⚙️ 설정"]
+        menu_options = ["🏠 홈", "📑 논문 목록", "📊 기간 분석", "📈 통계", "⚙️ 설정"]
         if st.session_state.selected_menu:
             if st.session_state.selected_menu in menu_options:
                 default_index = menu_options.index(st.session_state.selected_menu)
@@ -595,6 +595,8 @@ def main():
         render_home(db, stats)
     elif menu == "📑 논문 목록":
         render_articles(db)
+    elif menu == "📊 기간 분석":
+        render_period_analysis(db)
     elif menu == "📈 통계":
         render_statistics(db)
     elif menu == "⚙️ 설정":
@@ -738,6 +740,393 @@ def render_articles(db: DashboardDB):
             render_article_card(article, db=db)
     else:
         st.info("조건에 맞는 논문이 없습니다.")
+
+
+def render_period_analysis(db: DashboardDB):
+    """기간 분석 페이지"""
+    st.title("📊 기간 분석")
+    
+    st.markdown("""
+    선택한 기간 동안의 논문 수집 현황, 키워드 트렌드, 저널 분포 등을 분석합니다.
+    """)
+    
+    # ========== 기간 선택 UI ==========
+    st.subheader("📅 분석 기간 선택")
+    
+    col1, col2, col3 = st.columns([2, 1, 1])
+    
+    with col1:
+        period_options = {
+            "1개월": 30,
+            "3개월": 90,
+            "6개월": 180,
+            "12개월": 365,
+            "커스텀": None
+        }
+        selected_period = st.radio(
+            "기간 선택",
+            list(period_options.keys()),
+            horizontal=True,
+            label_visibility="collapsed"
+        )
+    
+    # 커스텀 날짜 선택
+    if selected_period == "커스텀":
+        col1, col2 = st.columns(2)
+        with col1:
+            start_date = st.date_input("시작일", value=datetime.now() - timedelta(days=30))
+        with col2:
+            end_date = st.date_input("종료일", value=datetime.now())
+        days = (end_date - start_date).days
+        date_from = start_date.strftime('%Y-%m-%d')
+        date_to = end_date.strftime('%Y-%m-%d')
+    else:
+        days = period_options[selected_period]
+        date_from = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+        date_to = datetime.now().strftime('%Y-%m-%d')
+    
+    st.caption(f"📆 분석 기간: **{date_from}** ~ **{date_to}** ({days}일)")
+    
+    st.divider()
+    
+    # ========== 데이터 조회 ==========
+    period_stats = get_period_stats(db, days)
+    period_keywords = db.get_keyword_stats(days=days)
+    period_daily = db.get_daily_counts(days=days)
+    
+    # ========== 1. 핵심 요약 ==========
+    st.subheader("📝 핵심 요약")
+    
+    col1, col2, col3, col4, col5 = st.columns(5)
+    
+    with col1:
+        st.metric("총 논문 수", f"{period_stats['total']:,}편")
+    with col2:
+        st.metric("🔴 High", f"{period_stats['high']}편")
+    with col3:
+        st.metric("🟡 Medium", f"{period_stats['medium']}편")
+    with col4:
+        avg_daily = period_stats['total'] / days if days > 0 else 0
+        st.metric("일평균", f"{avg_daily:.1f}편")
+    with col5:
+        read_rate = (period_stats['read'] / period_stats['total'] * 100) if period_stats['total'] > 0 else 0
+        st.metric("읽음률", f"{read_rate:.1f}%")
+    
+    # Top 5 키워드 표시
+    if not period_keywords.empty:
+        top5 = period_keywords.head(5)
+        top5_str = " · ".join([f"**{row['keyword']}**({row['count']})".replace('**', '') for _, row in top5.iterrows()])
+        st.info(f"🏷️ 주요 키워드: {top5_str}")
+    
+    st.divider()
+    
+    # ========== 2. 키워드 트렌드 ==========
+    st.subheader("🏷️ 키워드 분석")
+    
+    tab1, tab2 = st.tabs(["키워드 빈도", "키워드 트렌드"])
+    
+    with tab1:
+        if not period_keywords.empty:
+            col1, col2 = st.columns([1, 1])
+            
+            with col1:
+                # 가로 막대 차트
+                top20 = period_keywords.head(20)
+                
+                colors = []
+                for _, row in top20.iterrows():
+                    if row.get('priority') == 'high':
+                        colors.append('#ff4b4b')
+                    elif row.get('priority') == 'medium':
+                        colors.append('#ffa500')
+                    else:
+                        colors.append('#4A90D9')
+                
+                fig = go.Figure(go.Bar(
+                    x=top20['count'].values,
+                    y=top20['keyword'].values,
+                    orientation='h',
+                    marker_color=colors,
+                    text=top20['count'].values,
+                    textposition='auto',
+                ))
+                
+                fig.update_layout(
+                    title="키워드 빈도 Top 20",
+                    yaxis={'categoryorder': 'total ascending'},
+                    height=500,
+                    margin=dict(l=0, r=0, t=40, b=0),
+                    xaxis_title="",
+                    yaxis_title="",
+                )
+                
+                st.plotly_chart(fig, use_container_width=True)
+            
+            with col2:
+                # 파이 차트
+                top10 = period_keywords.head(10)
+                
+                fig = px.pie(
+                    top10,
+                    values='count',
+                    names='keyword',
+                    title="키워드 비율 Top 10",
+                    hole=0.4
+                )
+                fig.update_layout(height=500)
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("해당 기간에 키워드 데이터가 없습니다.")
+    
+    with tab2:
+        # 일별 키워드 트렌드 (상위 5개 키워드)
+        if not period_keywords.empty:
+            st.markdown("주요 키워드의 일별 등장 트렌드")
+            
+            top5_keywords = period_keywords.head(5)['keyword'].tolist()
+            keyword_trend = get_keyword_daily_trend(db, days, top5_keywords)
+            
+            if not keyword_trend.empty:
+                fig = px.line(
+                    keyword_trend,
+                    x='date',
+                    y='count',
+                    color='keyword',
+                    title="주요 키워드 일별 트렌드",
+                    markers=True
+                )
+                fig.update_layout(height=400)
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("트렌드 데이터가 부족합니다.")
+        else:
+            st.info("해당 기간에 키워드 데이터가 없습니다.")
+    
+    st.divider()
+    
+    # ========== 3. 수집 현황 ==========
+    st.subheader("📈 수집 현황")
+    
+    if not period_daily.empty:
+        fig = go.Figure()
+        
+        fig.add_trace(go.Scatter(
+            x=period_daily['date'],
+            y=period_daily['count'],
+            mode='lines+markers',
+            name='전체',
+            line=dict(color='#4A90D9', width=2)
+        ))
+        
+        fig.add_trace(go.Bar(
+            x=period_daily['date'],
+            y=period_daily['high'],
+            name='High',
+            marker_color='#ff4b4b'
+        ))
+        
+        fig.add_trace(go.Bar(
+            x=period_daily['date'],
+            y=period_daily['medium'],
+            name='Medium',
+            marker_color='#ffa500'
+        ))
+        
+        fig.update_layout(
+            title="일별 논문 수집 현황",
+            xaxis_title="",
+            yaxis_title="논문 수",
+            barmode='stack',
+            height=400
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("해당 기간에 수집 데이터가 없습니다.")
+    
+    st.divider()
+    
+    # ========== 4. 저널별 분포 ==========
+    st.subheader("📰 저널별 분포")
+    
+    journal_stats = get_period_journal_stats(db, days)
+    
+    if not journal_stats.empty:
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            fig = px.bar(
+                journal_stats,
+                x='count',
+                y='journal',
+                orientation='h',
+                color='high',
+                color_continuous_scale='Reds',
+                title="저널별 논문 수"
+            )
+            fig.update_layout(
+                yaxis={'categoryorder': 'total ascending'},
+                height=500,
+                xaxis_title="논문 수",
+                yaxis_title=""
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            fig = px.pie(
+                journal_stats.head(10),
+                values='count',
+                names='journal',
+                title="저널 비율 Top 10",
+                hole=0.4
+            )
+            fig.update_layout(height=500)
+            st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("해당 기간에 저널 데이터가 없습니다.")
+    
+    st.divider()
+    
+    # ========== 5. 개인 활동 요약 ==========
+    st.subheader("📚 개인 활동 요약")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric("⭐ 즐겨찾기", f"{period_stats['starred']}편")
+    with col2:
+        st.metric("✅ 읽음", f"{period_stats['read']}편")
+    with col3:
+        unread = period_stats['total'] - period_stats['read']
+        st.metric("☐ 안읽음", f"{unread}편")
+    
+    # 즐겨찾기 논문 목록
+    if period_stats['starred'] > 0:
+        with st.expander(f"⭐ 즐겨찾기한 논문 ({period_stats['starred']}편)"):
+            starred_articles = db.get_articles(days=days, starred_only=True, limit=20)
+            for _, article in starred_articles.iterrows():
+                priority_emoji = {'high': '🔴', 'medium': '🟡'}.get(article.get('priority'), '⚪')
+                title = article.get('title_ko') or article.get('title')
+                st.markdown(f"- {priority_emoji} **{title}**")
+
+
+def get_period_stats(db: DashboardDB, days: int) -> dict:
+    """기간별 통계 조회"""
+    date_from = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+    
+    with db.get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # 전체 논문 수
+        cursor.execute("""
+            SELECT COUNT(*) FROM articles 
+            WHERE DATE(fetched_at) >= ?
+        """, (date_from,))
+        total = cursor.fetchone()[0]
+        
+        # High priority
+        cursor.execute("""
+            SELECT COUNT(*) FROM articles 
+            WHERE DATE(fetched_at) >= ? AND priority = 'high'
+        """, (date_from,))
+        high = cursor.fetchone()[0]
+        
+        # Medium priority
+        cursor.execute("""
+            SELECT COUNT(*) FROM articles 
+            WHERE DATE(fetched_at) >= ? AND priority = 'medium'
+        """, (date_from,))
+        medium = cursor.fetchone()[0]
+        
+        # 읽음
+        cursor.execute("""
+            SELECT COUNT(*) FROM articles 
+            WHERE DATE(fetched_at) >= ? AND is_read = 1
+        """, (date_from,))
+        read = cursor.fetchone()[0]
+        
+        # 즐겨찾기
+        cursor.execute("""
+            SELECT COUNT(*) FROM articles 
+            WHERE DATE(fetched_at) >= ? AND is_starred = 1
+        """, (date_from,))
+        starred = cursor.fetchone()[0]
+        
+        return {
+            'total': total,
+            'high': high,
+            'medium': medium,
+            'read': read,
+            'starred': starred
+        }
+
+
+def get_period_journal_stats(db: DashboardDB, days: int) -> pd.DataFrame:
+    """기간별 저널 통계"""
+    date_from = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+    
+    query = """
+        SELECT 
+            j.name as journal,
+            COUNT(*) as count,
+            SUM(CASE WHEN a.priority = 'high' THEN 1 ELSE 0 END) as high,
+            SUM(CASE WHEN a.priority = 'medium' THEN 1 ELSE 0 END) as medium
+        FROM articles a
+        LEFT JOIN journals j ON a.journal_id = j.id
+        WHERE DATE(a.fetched_at) >= ?
+        GROUP BY j.name
+        ORDER BY count DESC
+        LIMIT 20
+    """
+    
+    with db.get_connection() as conn:
+        df = pd.read_sql_query(query, conn, params=[date_from])
+    
+    return df
+
+
+def get_keyword_daily_trend(db: DashboardDB, days: int, keywords: list) -> pd.DataFrame:
+    """키워드별 일별 트렌드"""
+    date_from = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+    
+    query = """
+        SELECT DATE(fetched_at) as date, keywords_matched
+        FROM articles
+        WHERE DATE(fetched_at) >= ?
+          AND keywords_matched IS NOT NULL 
+          AND keywords_matched != ''
+    """
+    
+    with db.get_connection() as conn:
+        df = pd.read_sql_query(query, conn, params=[date_from])
+    
+    if df.empty:
+        return pd.DataFrame()
+    
+    # 일별/키워드별 카운트
+    daily_counts = {}
+    
+    for _, row in df.iterrows():
+        date = row['date']
+        kw_matched = row['keywords_matched']
+        
+        try:
+            kw_list = json.loads(kw_matched)
+            if isinstance(kw_list, list):
+                for kw in kw_list:
+                    kw = str(kw).strip()
+                    if kw in keywords:
+                        key = (date, kw)
+                        daily_counts[key] = daily_counts.get(key, 0) + 1
+        except:
+            pass
+    
+    # DataFrame으로 변환
+    result = []
+    for (date, kw), count in daily_counts.items():
+        result.append({'date': date, 'keyword': kw, 'count': count})
+    
+    return pd.DataFrame(result)
 
 
 def render_statistics(db: DashboardDB):

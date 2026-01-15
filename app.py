@@ -4,6 +4,7 @@
 """
 
 import streamlit as st
+import streamlit.components.v1 as components
 import sqlite3
 import pandas as pd
 from pathlib import Path
@@ -12,6 +13,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 import yaml
 import json
+import networkx as nx
+from pyvis.network import Network
+import tempfile
 
 # 페이지 설정
 st.set_page_config(
@@ -823,7 +827,7 @@ def render_period_analysis(db: DashboardDB):
     # ========== 2. 키워드 트렌드 ==========
     st.subheader("🏷️ 키워드 분석")
     
-    tab1, tab2 = st.tabs(["키워드 빈도", "키워드 트렌드"])
+    tab1, tab2, tab3 = st.tabs(["키워드 빈도", "키워드 트렌드", "🔗 공출현 네트워크"])
     
     with tab1:
         if not period_keywords.empty:
@@ -877,6 +881,32 @@ def render_period_analysis(db: DashboardDB):
                 st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("해당 기간에 키워드 데이터가 없습니다.")
+    
+    with tab3:
+        st.markdown("""
+        같은 논문에 함께 등장한 키워드들을 네트워크로 시각화합니다.  
+        - 노드 크기 = 연결 수 (다른 키워드와 얼마나 자주 함께 등장하는지)
+        - 엣지 두께 = 공출현 횟수
+        - 🔴 High Priority · 🟡 Medium Priority · 🔵 기타
+        """)
+        
+        col1, col2 = st.columns([3, 1])
+        with col2:
+            min_cooccur = st.slider("최소 공출현 횟수", 1, 10, 2, help="이 횟수 이상 함께 등장한 키워드만 표시")
+        
+        cooccurrence_df = get_keyword_cooccurrence(db, days, min_count=min_cooccur)
+        
+        if not cooccurrence_df.empty:
+            st.caption(f"키워드 연결 수: {len(cooccurrence_df)}개")
+            render_keyword_network(cooccurrence_df, period_keywords)
+            
+            # 공출현 Top 10 테이블
+            with st.expander("📊 공출현 Top 10 보기"):
+                top10 = cooccurrence_df.head(10)
+                for i, row in top10.iterrows():
+                    st.markdown(f"**{row['source']}** ↔ **{row['target']}**: {row['weight']}회")
+        else:
+            st.info("공출현 데이터가 부족합니다. 기간을 늘리거나 최소 공출현 횟수를 낮춰보세요.")
     
     with tab2:
         # 일별 키워드 트렌드 (상위 5개 키워드)
@@ -1127,6 +1157,105 @@ def get_keyword_daily_trend(db: DashboardDB, days: int, keywords: list) -> pd.Da
         result.append({'date': date, 'keyword': kw, 'count': count})
     
     return pd.DataFrame(result)
+
+
+def get_keyword_cooccurrence(db: DashboardDB, days: int, min_count: int = 2) -> pd.DataFrame:
+    """키워드 공출현 데이터 추출"""
+    date_from = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+    
+    query = """
+        SELECT keywords_matched
+        FROM articles
+        WHERE DATE(fetched_at) >= ?
+          AND keywords_matched IS NOT NULL 
+          AND keywords_matched != ''
+    """
+    
+    with db.get_connection() as conn:
+        df = pd.read_sql_query(query, conn, params=[date_from])
+    
+    if df.empty:
+        return pd.DataFrame()
+    
+    # 키워드 쌍 카운트
+    cooccurrence = {}
+    
+    for _, row in df.iterrows():
+        kw_matched = row['keywords_matched']
+        
+        try:
+            kw_list = json.loads(kw_matched)
+            if isinstance(kw_list, list) and len(kw_list) >= 2:
+                # 모든 키워드 쌍 조합
+                kw_list = [str(kw).strip() for kw in kw_list]
+                for i in range(len(kw_list)):
+                    for j in range(i + 1, len(kw_list)):
+                        pair = tuple(sorted([kw_list[i], kw_list[j]]))
+                        cooccurrence[pair] = cooccurrence.get(pair, 0) + 1
+        except:
+            pass
+    
+    # DataFrame으로 변환
+    result = []
+    for (kw1, kw2), count in cooccurrence.items():
+        if count >= min_count:
+            result.append({'source': kw1, 'target': kw2, 'weight': count})
+    
+    return pd.DataFrame(result).sort_values('weight', ascending=False)
+
+
+def render_keyword_network(cooccurrence_df: pd.DataFrame, keyword_stats: pd.DataFrame):
+    """키워드 공출현 네트워크 시각화"""
+    if cooccurrence_df.empty:
+        st.info("공출현 데이터가 부족합니다. 더 많은 데이터가 필요합니다.")
+        return
+    
+    # 키워드 우선순위 매핑
+    priority_map = {}
+    if not keyword_stats.empty:
+        for _, row in keyword_stats.iterrows():
+            priority_map[row['keyword']] = row.get('priority', 'normal')
+    
+    # NetworkX 그래프 생성
+    G = nx.Graph()
+    
+    # 엣지 추가
+    for _, row in cooccurrence_df.iterrows():
+        G.add_edge(row['source'], row['target'], weight=row['weight'])
+    
+    # Pyvis 네트워크 생성
+    net = Network(height='500px', width='100%', bgcolor='#ffffff', font_color='#333333')
+    net.barnes_hut(gravity=-3000, central_gravity=0.3, spring_length=100)
+    
+    # 노드 추가 (우선순위에 따른 색상)
+    for node in G.nodes():
+        priority = priority_map.get(node, 'normal')
+        
+        if priority == 'high':
+            color = '#ff4b4b'  # 빨강
+        elif priority == 'medium':
+            color = '#ffa500'  # 주황
+        else:
+            color = '#4A90D9'  # 파랑
+        
+        # 노드 크기 = 연결 수
+        size = 15 + G.degree(node) * 3
+        
+        net.add_node(node, label=node, color=color, size=size, title=f"{node}\n연결: {G.degree(node)}개")
+    
+    # 엣지 추가
+    for edge in G.edges(data=True):
+        weight = edge[2]['weight']
+        net.add_edge(edge[0], edge[1], value=weight, title=f"공출현: {weight}회")
+    
+    # HTML 생성
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w', encoding='utf-8') as f:
+        net.save_graph(f.name)
+        f.seek(0)
+        html_content = open(f.name, 'r', encoding='utf-8').read()
+    
+    # Streamlit에 렌더링
+    components.html(html_content, height=520, scrolling=True)
 
 
 def render_statistics(db: DashboardDB):

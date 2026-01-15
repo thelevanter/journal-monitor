@@ -11,3 +11,7 @@ resend
 streamlit
 plotly
 pandas
+
+# 네트워크 시각화
+networkx
+pyvis

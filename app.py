@@ -156,7 +156,9 @@ class DashboardDB:
             }
     
     def get_articles(self, priority: str = None, journal: str = None, 
-                     days: int = None, search: str = None, limit: int = 100) -> pd.DataFrame:
+                     days: int = None, search: str = None, 
+                     starred_only: bool = False, unread_only: bool = False,
+                     limit: int = 100) -> pd.DataFrame:
         """논문 목록 조회"""
         query = """
             SELECT 
@@ -196,9 +198,15 @@ class DashboardDB:
             params.append(date_from)
         
         if search:
-            query += " AND (a.title LIKE ? OR a.abstract LIKE ? OR a.title_ko LIKE ?)"
+            query += " AND (a.title LIKE ? OR a.abstract LIKE ? OR a.title_ko LIKE ? OR a.keywords_matched LIKE ?)"
             search_term = f"%{search}%"
-            params.extend([search_term, search_term, search_term])
+            params.extend([search_term, search_term, search_term, search_term])
+        
+        if starred_only:
+            query += " AND a.is_starred = 1"
+        
+        if unread_only:
+            query += " AND a.is_read = 0"
         
         query += " ORDER BY a.fetched_at DESC LIMIT ?"
         params.append(limit)
@@ -335,6 +343,16 @@ class DashboardDB:
                 (article_id,)
             )
             conn.commit()
+    
+    def toggle_read(self, article_id: int):
+        """읽음 표시 토글"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE articles SET is_read = CASE WHEN is_read = 1 THEN 0 ELSE 1 END WHERE id = ?",
+                (article_id,)
+            )
+            conn.commit()
 
 
 def load_config() -> dict:
@@ -353,7 +371,7 @@ def save_config(config: dict):
         yaml.dump(config, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
 
 
-def render_article_card(article: pd.Series):
+def render_article_card(article: pd.Series, db: 'DashboardDB' = None):
     """논문 카드 렌더링"""
     priority = article.get('priority', 'normal') or 'normal'
     priority_emoji = {'high': '🔴', 'medium': '🟡', 'normal': '⚪', 'low': '⚪'}.get(priority, '⚪')
@@ -378,17 +396,41 @@ def render_article_card(article: pd.Series):
         except:
             pass
     
+    # 상태 확인
+    article_id = article.get('id')
+    is_starred = bool(article.get('is_starred', 0))
+    is_read = bool(article.get('is_read', 0))
+    
     with st.container():
-        col1, col2 = st.columns([0.95, 0.05])
+        col1, col2, col3, col4 = st.columns([0.85, 0.05, 0.05, 0.05])
         
         with col1:
-            st.markdown(f"### {priority_emoji} {display_title}")
-            st.caption(f"📰 {journal} · 📅 {fetched}")
+            # 제목에 읽음 표시 반영
+            read_style = "" if not is_read else "~~"
+            star_mark = "⭐ " if is_starred else ""
+            st.markdown(f"### {star_mark}{priority_emoji} {display_title}")
+            st.caption(f"📰 {journal} · 📅 {fetched}{' · ✅ 읽음' if is_read else ''}")
             
             if keywords:
                 st.markdown(f"🏷️ `{keywords}`")
         
         with col2:
+            # 즐겨찾기 버튼
+            star_icon = "⭐" if is_starred else "☆"
+            if st.button(star_icon, key=f"star_{article_id}", help="즐겨찾기 토글"):
+                if db:
+                    db.toggle_starred(article_id)
+                    st.rerun()
+        
+        with col3:
+            # 읽음 표시 버튼
+            read_icon = "✅" if is_read else "☐"
+            if st.button(read_icon, key=f"read_{article_id}", help="읽음 표시 토글"):
+                if db:
+                    db.toggle_read(article_id)
+                    st.rerun()
+        
+        with col4:
             if article.get('url'):
                 st.link_button("🔗", article['url'], help="원문 보기")
         
@@ -633,7 +675,7 @@ def render_home(db: DashboardDB, stats: dict):
     
     if not high_articles.empty:
         for _, article in high_articles.iterrows():
-            render_article_card(article)
+            render_article_card(article, db=db)
     else:
         st.info("High priority 논문이 없습니다.")
 
@@ -651,6 +693,7 @@ def render_articles(db: DashboardDB):
         st.session_state.selected_keyword = None
         st.session_state.selected_menu = None
     
+    # 필터 옵션 - 1행: 기본 필터
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -665,7 +708,14 @@ def render_articles(db: DashboardDB):
         days_filter = st.selectbox("기간", days_options, format_func=lambda x: x[0])
     
     with col4:
-        search = st.text_input("🔍 검색", value=default_search, placeholder="제목, 초록 검색...")
+        search = st.text_input("🔍 검색", value=default_search, placeholder="제목, 초록, 키워드...")
+    
+    # 필터 옵션 - 2행: 즐겨찾기/읽음 필터
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        starred_only = st.toggle("⭐ 즐겨찾기만", value=False)
+    with col2:
+        unread_only = st.toggle("☐ 안읽은 것만", value=False)
     
     st.divider()
     
@@ -674,6 +724,8 @@ def render_articles(db: DashboardDB):
         journal=journal_filter if journal_filter != "전체" else None,
         days=days_filter[1],
         search=search if search else None,
+        starred_only=starred_only,
+        unread_only=unread_only,
         limit=50
     )
     
@@ -681,7 +733,7 @@ def render_articles(db: DashboardDB):
     
     if not articles.empty:
         for _, article in articles.iterrows():
-            render_article_card(article)
+            render_article_card(article, db=db)
     else:
         st.info("조건에 맞는 논문이 없습니다.")
 

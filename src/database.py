@@ -30,8 +30,6 @@ class Database:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             
-            # 기존 테이블 마이그레이션 (keywords_matched 컬럼 추가)
-            self._migrate_keywords_column(cursor)
             
             # 저널 테이블
             cursor.execute("""

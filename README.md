@@ -232,4 +232,3 @@ python main.py
 
 ---
 
-*Made with ❤️ by 제시카 for 케이*

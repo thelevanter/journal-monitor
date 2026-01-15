@@ -11,6 +11,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -26,7 +28,21 @@ jobs:
         RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       run: python main.py --hours 24
     
-    - name: Upload reports
+    - name: Commit DB and reports to repo
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        
+        # data 폴더와 reports 폴더 추가
+        git add data/ reports/ || true
+        
+        # 변경사항 있으면 커밋
+        git diff --staged --quiet || git commit -m "📚 Update DB and reports - $(date +'%Y-%m-%d %H:%M')"
+        
+        # 푸시
+        git push || true
+    
+    - name: Upload reports (backup)
       uses: actions/upload-artifact@v4
       with:
         name: journal-report-${{ github.run_number }}

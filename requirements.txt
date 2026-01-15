@@ -1,28 +1,13 @@
-# Journal Monitor Dependencies
-# 케이의 학술저널 RSS 모니터링 시스템
-
-# Core
-feedparser>=6.0.10
-pyyaml>=6.0.1
-jinja2>=3.1.2
-requests>=2.31.0
-
-# Database
-# sqlite3 is built-in
-
-# Anthropic API
-anthropic>=0.18.0
-
-# Date parsing
-python-dateutil>=2.8.2
-
-# Future: Topic Modeling & Keyword Extraction (5단계)
-# keybert>=0.8.3
-# sentence-transformers>=2.2.2
-# bertopic>=0.16.0
-
-# Development
-# pytest>=7.4.0
-# black>=23.0.0
-beautifulsoup4
+# Journal Monitor 기존 의존성
+feedparser
+pyyaml
+jinja2
+anthropic
+python-dateutil
+requests
 resend
+
+# Streamlit 대시보드 의존성
+streamlit
+plotly
+pandas

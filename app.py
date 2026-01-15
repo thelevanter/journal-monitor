@@ -420,78 +420,44 @@ def render_article_card(article: pd.Series):
 
 
 def render_today_keywords(db: DashboardDB):
-    """오늘의 키워드 인포그래픽"""
+    """오늘의 키워드 인포그래픽 - Streamlit 네이티브 버전"""
     today_kw = db.get_today_keywords()
     
     if today_kw.empty:
         st.info("오늘 수집된 논문에서 매칭된 키워드가 없습니다.")
         return
     
-    # 상위 10개 키워드
-    top_keywords = today_kw.head(10)
+    # 상위 12개 키워드
+    top_keywords = today_kw.head(12)
     
-    # 두 가지 시각화: 버블 뱃지 + 가로 막대
     col1, col2 = st.columns([1, 1])
     
     with col1:
-        # 키워드 버블 뱃지 (HTML)
-        st.markdown("#### 🏷️ 오늘의 연구 키워드")
+        st.markdown("#### 🏷️ 키워드 태그")
         
-        badges_html = '<div style="display: flex; flex-wrap: wrap; gap: 8px; padding: 15px; background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%); border-radius: 12px;">'
+        # Streamlit 네이티브: pills/tags 스타일로 표현
+        # 4열로 키워드 배치
+        kw_cols = st.columns(4)
         
-        max_count = top_keywords['count'].max() if not top_keywords.empty else 1
-        
-        for _, row in top_keywords.iterrows():
+        for i, (_, row) in enumerate(top_keywords.iterrows()):
             kw = row['keyword']
             count = row['count']
             priority = row.get('priority', 'normal')
             
-            # 크기 계산 (count에 비례)
-            size_ratio = count / max_count
-            font_size = int(12 + size_ratio * 6)  # 12px ~ 18px
-            
-            # 색상: high=빨강계열, medium=주황계열, 기타=파랑계열
+            # 우선순위별 이모지
             if priority == 'high':
-                bg_color = f"rgba(255, 75, 75, {0.6 + size_ratio * 0.4})"
-                text_color = "white"
+                emoji = "🔴"
             elif priority == 'medium':
-                bg_color = f"rgba(255, 165, 0, {0.6 + size_ratio * 0.4})"
-                text_color = "#333"
+                emoji = "🟡"
             else:
-                bg_color = f"rgba(74, 144, 217, {0.5 + size_ratio * 0.4})"
-                text_color = "white"
+                emoji = "🔵"
             
-            badges_html += f'''
-                <span style="
-                    background: {bg_color};
-                    color: {text_color};
-                    padding: 6px 14px;
-                    border-radius: 20px;
-                    font-size: {font_size}px;
-                    font-weight: 500;
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 6px;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                ">
-                    {kw}
-                    <span style="
-                        background: rgba(255,255,255,0.3);
-                        padding: 2px 6px;
-                        border-radius: 10px;
-                        font-size: 11px;
-                    ">{count}</span>
-                </span>
-            '''
+            with kw_cols[i % 4]:
+                st.markdown(f"{emoji} **{kw}** `{count}`")
         
-        badges_html += '</div>'
-        st.markdown(badges_html, unsafe_allow_html=True)
-        
-        # 범례
-        st.caption("🔴 High Priority · 🟡 Medium Priority · 🔵 기타")
+        st.caption("🔴 High · 🟡 Medium · 🔵 기타")
     
     with col2:
-        # 가로 막대 차트
         st.markdown("#### 📊 키워드 빈도")
         
         if not top_keywords.empty:
@@ -516,7 +482,7 @@ def render_today_keywords(db: DashboardDB):
             
             fig.update_layout(
                 yaxis={'categoryorder': 'total ascending'},
-                height=300,
+                height=350,
                 margin=dict(l=0, r=0, t=10, b=0),
                 xaxis_title="",
                 yaxis_title="",

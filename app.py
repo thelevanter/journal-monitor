@@ -456,7 +456,9 @@ def render_article_card(article: pd.Series, db: 'DashboardDB' = None):
                 
                 if article.get('doi'):
                     st.divider()
-                    st.markdown(f"**DOI:** `{article['doi']}`")
+                    doi = article['doi']
+                    doi_url = f"https://doi.org/{doi}" if not doi.startswith('http') else doi
+                    st.markdown(f"**DOI:** [{doi}]({doi_url})")
         
         st.divider()
 

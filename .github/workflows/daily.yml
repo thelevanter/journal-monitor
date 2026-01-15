@@ -18,7 +18,7 @@ jobs:
         python-version: '3.11'
     
     - name: Install dependencies
-      run: pip install -r requirements.txt
+      run: pip install -r requirements.txt resend
     
     - name: Run Journal Monitor
       env:
@@ -27,14 +27,14 @@ jobs:
     
     - name: Send to Craft
       env:
-        GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
-        GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       run: |
         python -c "
-        import smtplib
-        from email.mime.text import MIMEText
+        import resend
         from pathlib import Path
         import os
+        
+        resend.api_key = os.environ['RESEND_API_KEY']
         
         reports = list(Path('reports').glob('*.md'))
         if not reports:
@@ -44,15 +44,13 @@ jobs:
         report = max(reports, key=lambda x: x.stat().st_mtime)
         content = report.read_text()
         
-        msg = MIMEText(content)
-        msg['Subject'] = f'📚 학술저널 브리핑 {report.stem}'
-        msg['From'] = os.environ['GMAIL_ADDRESS']
-        msg['To'] = 'mangos-unite-6rg@craft.me'
-        
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as s:
-            s.login(os.environ['GMAIL_ADDRESS'], os.environ['GMAIL_APP_PASSWORD'])
-            s.send_message(msg)
-        print(f'Sent: {report.name}')
+        r = resend.Emails.send({
+            'from': 'Journal Monitor <onboarding@resend.dev>',
+            'to': 'mangos-unite-6rg@craft.me',
+            'subject': f'📚 학술저널 브리핑 {report.stem}',
+            'text': content
+        })
+        print(f'Sent: {r}')
         "
     
     - name: Upload reports

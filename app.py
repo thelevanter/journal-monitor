@@ -434,9 +434,9 @@ def render_today_keywords(db: DashboardDB):
     
     with col1:
         st.markdown("#### 🏷️ 키워드 태그")
+        st.caption("클릭하면 해당 키워드 논문 목록으로 이동")
         
-        # Streamlit 네이티브: pills/tags 스타일로 표현
-        # 4열로 키워드 배치
+        # 4열로 키워드 버튼 배치
         kw_cols = st.columns(4)
         
         for i, (_, row) in enumerate(top_keywords.iterrows()):
@@ -453,7 +453,11 @@ def render_today_keywords(db: DashboardDB):
                 emoji = "🔵"
             
             with kw_cols[i % 4]:
-                st.markdown(f"{emoji} **{kw}** `{count}`")
+                # 버튼 클릭 시 해당 키워드로 논문 목록 페이지 이동
+                if st.button(f"{emoji} {kw} ({count})", key=f"kw_btn_{i}", use_container_width=True):
+                    st.session_state.selected_keyword = kw
+                    st.session_state.selected_menu = "📑 논문 목록"
+                    st.rerun()
         
         st.caption("🔴 High · 🟡 Medium · 🔵 기타")
     
@@ -504,15 +508,29 @@ def main():
     
     db = DashboardDB(str(db_path))
     
+    # session_state 초기화
+    if 'selected_keyword' not in st.session_state:
+        st.session_state.selected_keyword = None
+    if 'selected_menu' not in st.session_state:
+        st.session_state.selected_menu = None
+    
     with st.sidebar:
         st.title("📚 Journal Monitor")
         st.caption("케이의 학술논문 모니터링")
         
         st.divider()
         
+        # 키워드 클릭으로 메뉴 이동 시 반영
+        default_index = 0
+        menu_options = ["🏠 홈", "📑 논문 목록", "📈 통계", "⚙️ 설정"]
+        if st.session_state.selected_menu:
+            if st.session_state.selected_menu in menu_options:
+                default_index = menu_options.index(st.session_state.selected_menu)
+        
         menu = st.radio(
             "메뉴",
-            ["🏠 홈", "📑 논문 목록", "📈 통계", "⚙️ 설정"],
+            menu_options,
+            index=default_index,
             label_visibility="collapsed"
         )
         
@@ -624,6 +642,15 @@ def render_articles(db: DashboardDB):
     """논문 목록 화면"""
     st.title("📑 논문 목록")
     
+    # 키워드에서 이동해온 경우 검색어 자동 설정
+    default_search = ""
+    if st.session_state.get('selected_keyword'):
+        default_search = st.session_state.selected_keyword
+        st.info(f"🏷️ '{default_search}' 키워드 논문 목록")
+        # 사용 후 초기화 (다음 방문 시 리셋)
+        st.session_state.selected_keyword = None
+        st.session_state.selected_menu = None
+    
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -638,7 +665,7 @@ def render_articles(db: DashboardDB):
         days_filter = st.selectbox("기간", days_options, format_func=lambda x: x[0])
     
     with col4:
-        search = st.text_input("🔍 검색", placeholder="제목, 초록 검색...")
+        search = st.text_input("🔍 검색", value=default_search, placeholder="제목, 초록 검색...")
     
     st.divider()
     

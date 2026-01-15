@@ -1713,6 +1713,13 @@ ACADEMIC_STOPWORDS = [
     # 월/날짜
     'january', 'february', 'march', 'april', 'may', 'june',
     'july', 'august', 'september', 'october', 'november', 'december',
+    # 흔한 저자 성씨 (중국/서양)
+    'huang', 'zhang', 'xiang', 'chu', 'wang', 'li', 'liu', 'chen',
+    'william', 'peter', 'john', 'david', 'michael', 'james', 'robert',
+    # 학문 분야/저널명 관련
+    'urban', 'geography', 'political', 'sociological', 'planning',
+    'space', 'nature', 'historical', 'culture', 'society', 'media',
+    'studies', 'review', 'quarterly', 'international',
     # 동사 기본형
     'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did',
     'will', 'shall', 'get', 'got', 'getting', 'go', 'goes', 'going', 'gone',

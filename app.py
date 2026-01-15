@@ -1147,7 +1147,12 @@ def render_period_analysis(db: DashboardDB):
                 for _, art in cluster_articles.head(5).iterrows():
                     title = art.get('title_ko') or art.get('title')
                     priority_emoji = {'high': '🔴', 'medium': '🟡'}.get(art.get('priority'), '⚪')
-                    st.markdown(f"- {priority_emoji} {title}")
+                    doi = art.get('doi')
+                    if doi:
+                        doi_url = f"https://doi.org/{doi}" if not str(doi).startswith('http') else doi
+                        st.markdown(f"- {priority_emoji} [{title}]({doi_url})")
+                    else:
+                        st.markdown(f"- {priority_emoji} {title}")
                 st.markdown("---")
     
     st.divider()
@@ -1194,8 +1199,8 @@ def render_period_analysis(db: DashboardDB):
     
     if not ANTHROPIC_AVAILABLE:
         st.warning("Anthropic 라이브러리가 설치되지 않았습니다.")
-    elif not os.environ.get('ANTHROPIC_API_KEY'):
-        st.warning("ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다.")
+    elif not get_api_key():
+        st.warning("ANTHROPIC_API_KEY가 설정되지 않았습니다. Streamlit Cloud Settings → Secrets에서 추가해주세요.")
     else:
         if st.button("🤖 AI 인사이트 생성", type="primary"):
             with st.spinner("Claude가 논문을 분석 중..."):
@@ -1554,12 +1559,25 @@ def render_theory_network(theory_data: dict):
 
 
 # ========== AI 인사이트 ==========
+def get_api_key() -> str:
+    """환경변수 또는 Streamlit Secrets에서 API KEY 가져오기"""
+    # 1. Streamlit Secrets 시도 (Cloud 배포 시)
+    try:
+        if hasattr(st, 'secrets') and 'ANTHROPIC_API_KEY' in st.secrets:
+            return st.secrets['ANTHROPIC_API_KEY']
+    except:
+        pass
+    
+    # 2. 환경변수 시도 (로컬 실행 시)
+    return os.environ.get('ANTHROPIC_API_KEY', '')
+
+
 def generate_ai_insights(db: DashboardDB, days: int, keyword_stats: pd.DataFrame) -> str:
     """Claude API로 AI 인사이트 생성"""
     if not ANTHROPIC_AVAILABLE:
         return None
     
-    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    api_key = get_api_key()
     if not api_key:
         return None
     
@@ -1631,12 +1649,84 @@ def generate_ai_insights(db: DashboardDB, days: int, keyword_stats: pd.DataFrame
 
 
 # ========== 토픽 클러스터링 ==========
+# 학술 논문용 확장 불용어
+ACADEMIC_STOPWORDS = [
+    # 일반 학술 용어
+    'study', 'studies', 'research', 'paper', 'article', 'analysis', 'result', 'results',
+    'finding', 'findings', 'data', 'method', 'methods', 'approach', 'approaches',
+    'using', 'based', 'propose', 'proposed', 'show', 'shows', 'shown', 'present', 'presented',
+    'examine', 'examines', 'examined', 'explore', 'explores', 'explored', 'discuss', 'discusses',
+    'investigate', 'investigates', 'investigated', 'argue', 'argues', 'argued',
+    'suggest', 'suggests', 'suggested', 'demonstrate', 'demonstrates', 'demonstrated',
+    'focus', 'focuses', 'focused', 'provide', 'provides', 'provided',
+    'aim', 'aims', 'aimed', 'introduce', 'introduces', 'introduced',
+    'describe', 'describes', 'described', 'review', 'reviews', 'reviewed',
+    'consider', 'considers', 'considered', 'highlight', 'highlights', 'highlighted',
+    'reveal', 'reveals', 'revealed', 'address', 'addresses', 'addressed',
+    'develop', 'develops', 'developed', 'apply', 'applies', 'applied',
+    'use', 'uses', 'used', 'make', 'makes', 'made', 'find', 'finds', 'found',
+    'include', 'includes', 'included', 'offer', 'offers', 'offered',
+    'identify', 'identifies', 'identified', 'allow', 'allows', 'allowed',
+    'enable', 'enables', 'enabled', 'lead', 'leads', 'led',
+    'create', 'creates', 'created', 'support', 'supports', 'supported',
+    'understand', 'understands', 'understanding', 'work', 'works', 'working',
+    'contribute', 'contributes', 'contributed', 'contribution', 'contributions',
+    # 학술 구조 용어
+    'introduction', 'conclusion', 'conclusions', 'discussion', 'methodology',
+    'literature', 'framework', 'theory', 'theoretical', 'empirical',
+    'qualitative', 'quantitative', 'case', 'cases', 'example', 'examples',
+    'context', 'contexts', 'perspective', 'perspectives', 'aspect', 'aspects',
+    'factor', 'factors', 'element', 'elements', 'component', 'components',
+    'dimension', 'dimensions', 'level', 'levels', 'type', 'types',
+    'form', 'forms', 'way', 'ways', 'term', 'terms', 'concept', 'concepts',
+    'notion', 'notions', 'idea', 'ideas', 'view', 'views', 'point', 'points',
+    'issue', 'issues', 'question', 'questions', 'problem', 'problems',
+    'challenge', 'challenges', 'opportunity', 'opportunities',
+    'implication', 'implications', 'limitation', 'limitations',
+    # 형용사/부사
+    'important', 'significant', 'key', 'main', 'major', 'primary', 'central',
+    'critical', 'crucial', 'essential', 'fundamental', 'basic', 'general',
+    'specific', 'particular', 'various', 'different', 'similar', 'related',
+    'relevant', 'appropriate', 'necessary', 'possible', 'available',
+    'existing', 'current', 'recent', 'new', 'old', 'first', 'second', 'third',
+    'also', 'however', 'therefore', 'thus', 'moreover', 'furthermore',
+    'nevertheless', 'although', 'though', 'whereas', 'while', 'since', 'because',
+    'hence', 'consequently', 'accordingly', 'specifically', 'particularly',
+    'especially', 'generally', 'typically', 'usually', 'often', 'sometimes',
+    'always', 'never', 'perhaps', 'probably', 'possibly', 'certainly',
+    'clearly', 'obviously', 'relatively', 'approximately', 'significantly',
+    'substantially', 'considerably', 'somewhat', 'slightly', 'largely',
+    'mainly', 'mostly', 'primarily', 'almost', 'nearly', 'merely', 'simply',
+    'just', 'only', 'even', 'still', 'already', 'yet', 'soon', 'recently',
+    'currently', 'previously', 'finally', 'ultimately', 'initially', 'eventually',
+    # 기타 일반어
+    'one', 'two', 'three', 'many', 'much', 'more', 'most', 'other', 'others',
+    'such', 'well', 'may', 'can', 'could', 'would', 'should', 'must', 'need',
+    'within', 'without', 'between', 'among', 'across', 'through', 'throughout',
+    'during', 'before', 'after', 'toward', 'towards', 'against', 'along',
+    'around', 'behind', 'beyond', 'inside', 'outside', 'upon',
+    'et', 'al', 'fig', 'figure', 'table', 'pp', 'vol', 'abstract',
+    'author', 'authors', 'journal', 'doi', 'http', 'https', 'www',
+    # 동사 기본형
+    'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did',
+    'will', 'shall', 'get', 'got', 'getting', 'go', 'goes', 'going', 'gone',
+    'come', 'comes', 'coming', 'came', 'take', 'takes', 'taking', 'took', 'taken',
+    'give', 'gives', 'giving', 'gave', 'given', 'see', 'sees', 'seeing', 'saw', 'seen',
+    'know', 'knows', 'knowing', 'knew', 'known', 'think', 'thinks', 'thinking', 'thought',
+    'look', 'looks', 'looking', 'looked', 'want', 'wants', 'wanted', 'say', 'says', 'said',
+    'tell', 'tells', 'told', 'ask', 'asks', 'asked', 'try', 'tries', 'tried',
+    'seem', 'seems', 'seemed', 'become', 'becomes', 'became', 'keep', 'keeps', 'kept',
+    'let', 'lets', 'begin', 'begins', 'began', 'begun', 'start', 'starts', 'started',
+    'end', 'ends', 'ended', 'run', 'runs', 'running', 'ran', 'move', 'moves', 'moved',
+]
+
+
 def perform_topic_clustering(db: DashboardDB, days: int, n_clusters: int = 5) -> dict:
     """논문 초록 기반 토픽 클러스터링 (TF-IDF + KMeans)"""
     date_from = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
     
     query = """
-        SELECT id, title, title_ko, abstract, priority
+        SELECT id, title, title_ko, abstract, priority, doi
         FROM articles
         WHERE DATE(fetched_at) >= ?
           AND abstract IS NOT NULL 
@@ -1649,14 +1739,20 @@ def perform_topic_clustering(db: DashboardDB, days: int, n_clusters: int = 5) ->
     if len(df) < n_clusters:
         return {'clusters': [], 'articles': df, 'error': '데이터 부족'}
     
-    # TF-IDF 벡터화
+    # TF-IDF 벡터화 (학술 불용어 확장)
     abstracts = df['abstract'].tolist()
+    
+    # 영어 기본 불용어 + 학술 불용어 결합
+    from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+    combined_stopwords = list(ENGLISH_STOP_WORDS) + ACADEMIC_STOPWORDS
     
     vectorizer = TfidfVectorizer(
         max_features=1000,
-        stop_words='english',
+        stop_words=combined_stopwords,
         ngram_range=(1, 2),
-        min_df=2
+        min_df=2,
+        max_df=0.8,  # 너무 자주 나오는 단어 제외
+        token_pattern=r'\b[a-zA-Z]{3,}\b'  # 3글자 이상 영어만
     )
     
     try:

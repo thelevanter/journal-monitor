@@ -1720,6 +1720,8 @@ ACADEMIC_STOPWORDS = [
     'urban', 'geography', 'political', 'sociological', 'planning',
     'space', 'nature', 'historical', 'culture', 'society', 'media',
     'studies', 'review', 'quarterly', 'international',
+    'social', 'progress', 'history', 'writing', 'category',
+    'following', 'generative', 'frameworks', 'framed', 'fuentenebro',
     # 동사 기본형
     'be', 'been', 'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did',
     'will', 'shall', 'get', 'got', 'getting', 'go', 'goes', 'going', 'gone',

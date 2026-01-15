@@ -9,12 +9,14 @@ Journal Monitor - 메인 실행 파일
     python main.py --no-translate     # 번역 없이 수집만
     python main.py --craft            # Craft용 콘텐츠 출력
     python main.py --stats            # 통계만 출력
+    python main.py --send-email       # 이메일 발송 테스트
 """
 
 import os
 import sys
 import argparse
 import logging
+import base64
 from pathlib import Path
 from datetime import date, datetime
 import yaml
@@ -87,6 +89,10 @@ class JournalMonitor:
             'craft': {
                 'enabled': True,
                 'daily_note': True
+            },
+            'email': {
+                'enabled': True,
+                'to': 'dw.gimm@gmail.com'
             }
         }
     
@@ -125,9 +131,109 @@ class JournalMonitor:
         else:
             self.summarizer = None
             logger.warning("ANTHROPIC_API_KEY not set - translation disabled")
+        
+        # Resend API 키 체크
+        self.resend_api_key = os.environ.get('RESEND_API_KEY')
+        if not self.resend_api_key:
+            logger.warning("RESEND_API_KEY not set - email disabled")
+    
+    def send_email_report(self, report_path: str, craft_path: str = None) -> bool:
+        """
+        Resend API로 보고서 이메일 발송
+        
+        Args:
+            report_path: 보고서 파일 경로
+            craft_path: Craft용 콘텐츠 파일 경로 (선택)
+            
+        Returns:
+            성공 여부
+        """
+        if not self.resend_api_key:
+            logger.error("RESEND_API_KEY가 설정되지 않았습니다.")
+            return False
+        
+        try:
+            import resend
+            resend.api_key = self.resend_api_key
+            
+            # 이메일 설정
+            email_config = self.config.get('email', {})
+            to_email = email_config.get('to', 'dw.gimm@gmail.com')
+            
+            # 보고서 내용 읽기
+            report_content = ""
+            if Path(report_path).exists():
+                with open(report_path, 'r', encoding='utf-8') as f:
+                    report_content = f.read()
+            
+            # Craft용 콘텐츠 읽기 (있으면)
+            craft_content = ""
+            if craft_path and Path(craft_path).exists():
+                with open(craft_path, 'r', encoding='utf-8') as f:
+                    craft_content = f.read()
+            
+            # 첨부파일 준비
+            attachments = []
+            
+            # 메인 보고서 첨부
+            if report_content:
+                report_filename = Path(report_path).name
+                attachments.append({
+                    "filename": report_filename,
+                    "content": base64.b64encode(report_content.encode('utf-8')).decode('utf-8')
+                })
+            
+            # Craft용 콘텐츠 첨부
+            if craft_content:
+                craft_filename = Path(craft_path).name
+                attachments.append({
+                    "filename": craft_filename,
+                    "content": base64.b64encode(craft_content.encode('utf-8')).decode('utf-8')
+                })
+            
+            # 이메일 본문 (간단한 요약)
+            today = date.today().strftime('%Y년 %m월 %d일')
+            
+            # 통계 가져오기
+            stats = self.db.get_stats()
+            
+            email_body = f"""📚 학술저널 일간 브리핑 - {today}
+
+오늘의 브리핑이 도착했습니다.
+
+📊 현황:
+• 총 저장 논문: {stats['total_articles']}편
+• 높은 관심도: {stats['high_priority']}편
+• 최근 24시간: {stats['articles_24h']}편
+
+첨부된 마크다운 파일을 확인해주세요.
+
+---
+Journal Monitor by 제시카 🤖
+"""
+            
+            # 이메일 발송
+            result = resend.Emails.send({
+                "from": "Journal Monitor <onboarding@resend.dev>",
+                "to": to_email,
+                "subject": f"📚 학술저널 일간 브리핑 - {today}",
+                "text": email_body,
+                "attachments": attachments
+            })
+            
+            logger.info(f"✉️ 이메일 발송 완료: {to_email}")
+            logger.info(f"   Message ID: {result.get('id', 'unknown')}")
+            return True
+            
+        except ImportError:
+            logger.error("resend 라이브러리가 설치되지 않았습니다. pip install resend")
+            return False
+        except Exception as e:
+            logger.error(f"이메일 발송 실패: {e}")
+            return False
     
     def run(self, hours: int = None, translate: bool = True, 
-            academic_only: bool = True) -> dict:
+            academic_only: bool = True, send_email: bool = True) -> dict:
         """
         메인 실행 (완전 자동화)
         
@@ -135,15 +241,17 @@ class JournalMonitor:
         1. RSS 피드에서 논문 수집
         2. 키워드 매칭으로 우선순위 분류 (초록 있는 것만)
         3. 데이터베이스 저장
-        4. OpenAlex에서 초록 없는 논문 보충
+        4. OpenAlex에서 초록 보충
         5. 새 초록으로 우선순위 재계산
         6. high/medium 논문만 번역
         7. 보고서 생성
+        8. 이메일 발송
         
         Args:
             hours: 수집할 시간 범위
             translate: 번역 수행 여부
             academic_only: 학술 저널만 수집
+            send_email: 이메일 발송 여부
             
         Returns:
             실행 결과 요약
@@ -160,7 +268,7 @@ class JournalMonitor:
         logger.info("=" * 60)
         
         # ========== 1. RSS 피드에서 논문 수집 ==========
-        logger.info("\n[1/7] RSS 피드 수집 중...")
+        logger.info("\n[1/8] RSS 피드 수집 중...")
         
         categories = self.config['rss'].get('categories', None)
         if categories:
@@ -178,7 +286,7 @@ class JournalMonitor:
         logger.info(f"   → {len(articles)}편 수집됨")
         
         # ========== 2. 키워드 매칭 (초록 있는 것만 우선순위 분류) ==========
-        logger.info("\n[2/7] 키워드 매칭으로 우선순위 분류...")
+        logger.info("\n[2/8] 키워드 매칭으로 우선순위 분류...")
         
         if self.summarizer:
             for article in articles:
@@ -196,7 +304,7 @@ class JournalMonitor:
             logger.info("   → API 키 없음, 스킵")
         
         # ========== 3. 데이터베이스 저장 ==========
-        logger.info("\n[3/7] 데이터베이스 저장 중...")
+        logger.info("\n[3/8] 데이터베이스 저장 중...")
         new_count = 0
         for article in articles:
             journal_id = self.db.get_or_create_journal(
@@ -213,7 +321,7 @@ class JournalMonitor:
         logger.info(f"   → {new_count}편 새로 저장 (중복 제외)")
         
         # ========== 4. OpenAlex에서 초록 보충 ==========
-        logger.info("\n[4/7] OpenAlex에서 초록 보충...")
+        logger.info("\n[4/8] OpenAlex에서 초록 보충...")
         
         abstract_stats = self.db.get_abstract_stats()
         can_fetch = abstract_stats.get('can_fetch_from_openalex', 0)
@@ -224,7 +332,7 @@ class JournalMonitor:
                 db=self.db,
                 email=email,
                 limit=can_fetch,
-                translate=False,  # 여기선 번역 안 함
+                translate=False,
                 summarizer=None
             )
             logger.info(f"   → {fetched}편 초록 보충됨")
@@ -238,7 +346,7 @@ class JournalMonitor:
             logger.info("   → 보충할 논문 없음")
         
         # ========== 5. 새 초록으로 우선순위 재계산 ==========
-        logger.info("\n[5/7] 우선순위 재계산...")
+        logger.info("\n[5/8] 우선순위 재계산...")
         
         if self.summarizer:
             rechecked, new_high, new_medium = recheck_priorities(self.db, self.summarizer)
@@ -251,17 +359,19 @@ class JournalMonitor:
         
         # ========== 6. high/medium만 번역 ==========
         if translate and self.summarizer:
-            logger.info("\n[6/7] high/medium 논문 번역...")
+            logger.info("\n[6/8] high/medium 논문 번역...")
             translated = translate_priority_articles(
                 self.db, self.summarizer, ['high', 'medium']
             )
             logger.info(f"   → {translated}편 번역 완료")
         else:
-            logger.info("\n[6/7] 번역 스킵")
+            logger.info("\n[6/8] 번역 스킵")
         
         # ========== 7. 보고서 생성 ==========
-        logger.info("\n[7/7] 보고서 생성 중...")
+        logger.info("\n[7/8] 보고서 생성 중...")
         
+        report_path = None
+        craft_path = None
         today_articles = self.db.get_articles_by_date(date.today().isoformat())
         
         if today_articles:
@@ -281,6 +391,17 @@ class JournalMonitor:
             with open(craft_path, 'w', encoding='utf-8') as f:
                 f.write(craft_content)
             logger.info(f"   → Craft용 콘텐츠: {craft_path}")
+        
+        # ========== 8. 이메일 발송 ==========
+        if send_email and self.resend_api_key and report_path:
+            logger.info("\n[8/8] 이메일 발송 중...")
+            email_sent = self.send_email_report(report_path, str(craft_path) if craft_path else None)
+            if email_sent:
+                logger.info("   → ✉️ 이메일 발송 완료")
+            else:
+                logger.info("   → ❌ 이메일 발송 실패")
+        else:
+            logger.info("\n[8/8] 이메일 발송 스킵")
         
         # ========== 결과 요약 ==========
         logger.info("\n" + "=" * 60)
@@ -414,8 +535,10 @@ def main():
     python main.py                    # 기본 실행
     python main.py --hours 48         # 48시간 내 논문 수집
     python main.py --no-translate     # 번역 없이 수집만
+    python main.py --no-email         # 이메일 발송 안 함
     python main.py --stats            # 통계 확인
     python main.py --craft            # Craft용 콘텐츠 출력
+    python main.py --send-email       # 이메일 발송만 (최신 보고서)
         """
     )
     
@@ -425,6 +548,8 @@ def main():
                         help='수집할 시간 범위 (기본: 24)')
     parser.add_argument('--no-translate', action='store_true',
                         help='번역 없이 수집만')
+    parser.add_argument('--no-email', action='store_true',
+                        help='이메일 발송 안 함')
     parser.add_argument('--all-feeds', action='store_true',
                         help='모든 피드 수집 (학술 외 포함)')
     parser.add_argument('--stats', action='store_true',
@@ -439,6 +564,8 @@ def main():
                         help='초록 있는 논문 우선순위 재계산')
     parser.add_argument('--translate-priority', action='store_true',
                         help='high/medium 우선순위만 번역')
+    parser.add_argument('--send-email', action='store_true',
+                        help='최신 보고서 이메일 발송')
     
     args = parser.parse_args()
     
@@ -459,11 +586,23 @@ def main():
             monitor.recheck_priorities()
         elif args.translate_priority:
             monitor.translate_priority_only(['high', 'medium'])
+        elif args.send_email:
+            # 최신 보고서 찾아서 이메일 발송
+            reports_dir = Path(monitor.config['paths']['reports_dir']).expanduser()
+            today_str = date.today().strftime('%Y%m%d')
+            report_path = reports_dir / f"journal_brief_{today_str}.md"
+            craft_path = reports_dir / f"craft_{today_str}.md"
+            
+            if report_path.exists():
+                monitor.send_email_report(str(report_path), str(craft_path) if craft_path.exists() else None)
+            else:
+                logger.error(f"오늘 보고서가 없습니다: {report_path}")
         else:
             monitor.run(
                 hours=args.hours,
                 translate=not args.no_translate,
-                academic_only=not args.all_feeds
+                academic_only=not args.all_feeds,
+                send_email=not args.no_email
             )
     
     except KeyboardInterrupt:

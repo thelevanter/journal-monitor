@@ -2,7 +2,7 @@ name: Daily Journal Monitor
 
 on:
   schedule:
-    - cron: '0 22 * * *'
+    - cron: '0 22 * * *'  # UTC 22:00 = 한국 오전 7시
   workflow_dispatch:
 
 jobs:
@@ -23,35 +23,8 @@ jobs:
     - name: Run Journal Monitor
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      run: python main.py --hours 24
-    
-    - name: Send to Craft
-      env:
         RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-      run: |
-        python -c "
-        import resend
-        from pathlib import Path
-        import os
-        
-        resend.api_key = os.environ['RESEND_API_KEY']
-        
-        reports = list(Path('reports').glob('journal_brief_*.md'))
-        if not reports:
-            print('No reports found')
-            exit(0)
-        
-        report = max(reports, key=lambda x: x.stat().st_mtime)
-        content = report.read_text()
-        
-        r = resend.Emails.send({
-            'from': 'Journal Monitor <onboarding@resend.dev>',
-            'to': 'dw.gimm@gmail.com',
-            'subject': f'📚 학술저널 브리핑 {report.stem}',
-            'text': content
-        })
-        print(f'Sent: {r}')
-        "
+      run: python main.py --hours 24
     
     - name: Upload reports
       uses: actions/upload-artifact@v4

@@ -361,7 +361,7 @@ Journal Monitor by 제시카 🤖
         if translate and self.summarizer:
             logger.info("\n[6/8] high/medium 논문 번역...")
             translated = translate_priority_articles(
-                self.db, self.summarizer, ['high', 'medium']
+                self.db, self.summarizer, ['high']
             )
             logger.info(f"   → {translated}편 번역 완료")
         else:
